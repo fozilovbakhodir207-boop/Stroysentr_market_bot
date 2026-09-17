@@ -22,13 +22,13 @@ logging.basicConfig(level=logging.INFO)
 # ==========================================
 # ⚙️ SOZLAMALAR VA REKVIZITLAR
 # ==========================================
-BOT_TOKEN = "1234567890:ABCdefGHIjklMNOpqrsTUVwxyZ"  # BotFather bergan token
-ADMIN_IDS = [581234567]  # Telegram ID'ingiz
-ORDERS_GROUP_ID = -1001234567890  # Buyurtmalar tushadigan guruh ID'si
+BOT_TOKEN = "8599909804:AAGrZoiDTW-dxkoOgyKCbGNBR841TAcchp4"  # BotFather bergan token
+ADMIN_IDS = [6986848905]  # Telegram ID'ingiz
+ORDERS_GROUP_ID = -1004434264658 # Buyurtmalar tushadigan guruh ID'si
 
 # 💳 Do'konning plastic karta ma'lumotlari:
-CARD_NUMBER = "8600 0000 0000 0000"
-CARD_HOLDER = "FOZILOV BAHODIRJON"
+CARD_NUMBER = "4097 8300 8361 0556"
+CARD_HOLDER = "Sadriddin Abduraxmonov"
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
