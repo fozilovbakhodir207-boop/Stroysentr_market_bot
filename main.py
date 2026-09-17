@@ -13,28 +13,29 @@ from aiogram.types import (
     InlineKeyboardMarkup,
     KeyboardButton,
     ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
 )
 from aiohttp import web
 
 logging.basicConfig(level=logging.INFO)
 
 # ==========================================
-# ⚙️ SOZLAMALAR VA TO'LOV KARTASI
+# ⚙️ SOZLAMALAR VA REKVIZITLAR
 # ==========================================
-BOT_TOKEN = "8599909804:AAGrZoiDTW-dxkoOgyKCbGNBR841TAcchp4"  # BotFather tokeni
-ADMIN_IDS = [6986848905]  # Telegram ID'ingiz
-ORDERS_GROUP_ID = -1004434264658 # Guruh ID'si
+BOT_TOKEN = "1234567890:ABCdefGHIjklMNOpqrsTUVwxyZ"  # BotFather bergan token
+ADMIN_IDS = [581234567]  # Telegram ID'ingiz
+ORDERS_GROUP_ID = -1001234567890  # Buyurtmalar tushadigan guruh ID'si
 
 # 💳 Do'konning plastic karta ma'lumotlari:
-CARD_NUMBER = "4097 8300 8361 0556"
-CARD_HOLDER = "Sadriddin Abduraxmonov"
+CARD_NUMBER = "8600 0000 0000 0000"
+CARD_HOLDER = "FOZILOV BAHODIRJON"
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
 
 # ==========================================
-# 1. FSM HOLATLARI (TOVAR QO'SHISH VA TO'LOV)
+# 1. FSM HOLATLARI
 # ==========================================
 class AddProductFSM(StatesGroup):
   name = State()
@@ -44,6 +45,7 @@ class AddProductFSM(StatesGroup):
 
 
 class CheckoutFSM(StatesGroup):
+  items = State()
   phone = State()
   payment_method = State()
   receipt = State()
@@ -71,7 +73,7 @@ def init_db():
             user_name TEXT,
             phone TEXT,
             payment_method TEXT,
-            total_amount REAL,
+            items TEXT,
             status TEXT DEFAULT 'pending'
         )
     """)
@@ -80,7 +82,7 @@ def init_db():
 
 
 # ==========================================
-# 3. RENDER SERVER
+# 3. RENDER VEB-SERVERI (10000 PORT XATOSI TO'G'RILANGAN)
 # ==========================================
 async def handle_ping(request):
   return web.Response(
@@ -93,14 +95,23 @@ async def start_web_server():
   app.router.add_get("/", handle_ping)
   runner = web.AppRunner(app)
   await runner.setup()
-  port = int(os.environ.get("PORT", 8080))
+  # Render 10000 portini to'g'ri o'qib olishi uchun:
+  port = int(os.environ.get("PORT", 10000))
   site = web.TCPSite(runner, "0.0.0.0", port)
   await site.start()
 
 
 # ==========================================
-# 4. MENYULAR
+# 4. MENYULAR VA TUGMALAR
 # ==========================================
+async def set_bot_meta_info(bot: Bot):
+  commands = [
+      BotCommand(command="start", description="Botni qayta ishga tushirish"),
+      BotCommand(command="admin", description="Admin Panel"),
+  ]
+  await bot.set_my_commands(commands)
+
+
 def main_menu_keyboard():
   kb = [
       [
@@ -119,47 +130,17 @@ def main_menu_keyboard():
   return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 
-def payment_methods_keyboard():
-  kb = InlineKeyboardMarkup(
-      inline_keyboard=[
-          [
-              InlineKeyboardButton(
-                  text="🔹 Click orqali to'lov", callback_data="pay_click"
-              )
-          ],
-          [
-              InlineKeyboardButton(
-                  text="🔹 Payme orqali to'lov", callback_data="pay_payme"
-              )
-          ],
-          [
-              InlineKeyboardButton(
-                  text="💳 Karta raqamiga o'tkazish (Chek yuborish)",
-                  callback_data="pay_card",
-              )
-          ],
-          [
-              InlineKeyboardButton(
-                  text="💵 Naqd pul (Qabul qilganda)", callback_data="pay_cash"
-              )
-          ],
-      ]
-  )
-  return kb
-
-
 # ==========================================
-# 5. USER HANDLERLARI
+# 5. USER HANDLERLARI VA TO'LOV TIZIMI
 # ==========================================
 @dp.message(Command("start"))
 async def start_handler(message: types.Message):
-  welcome_text = (
+  await message.answer(
       f"Assalomu alaykum, {message.from_user.full_name}!\n\n"
       "🏗 <b>STROY SENTR</b> rasmiy botiga xush kelibsiz!\n\n"
-      "Kerakli bo'limni tanlang 👇"
-  )
-  await message.answer(
-      welcome_text, parse_mode="HTML", reply_markup=main_menu_keyboard()
+      "Kerakli bo'limni tanlang 👇",
+      parse_mode="HTML",
+      reply_markup=main_menu_keyboard(),
   )
 
 
@@ -167,37 +148,14 @@ async def start_handler(message: types.Message):
 async def payment_info(message: types.Message):
   text = (
       "💳 <b>STROY SENTR To'lov tizimlari:</b>\n\n"
-      "Bizda quyidagi to'lov turlari mavjud:\n"
-      "1. 📱 <b>Click / Payme</b> ilovalari orqali\n"
-      "2. 💳 <b>Karta raqamiga o'tkazma</b> (Uzcard/Humo)\n"
-      "3. 💵 <b>Naqd pul</b> (Mahsulot yetib borgach)\n\n"
-      "👇 Buyurtma berishda mos to'lov usulini tanlaysiz."
-  )
-  await message.answer(
-      text, parse_mode="HTML", reply_markup=payment_methods_keyboard()
-  )
-
-
-@dp.callback_query(F.data == "pay_card")
-async def card_payment_info(callback: types.CallbackQuery):
-  text = (
-      f"💳 <b>Karta orqali to'lov rekvizitlari:</b>\n\n"
-      f"📌 <b>Karta:</b> <code>{CARD_NUMBER}</code>\n"
+      f"📌 <b>Karta raqami:</b> <code>{CARD_NUMBER}</code>\n"
       f"👤 <b>Egani:</b> {CARD_HOLDER}\n\n"
-      f"To'lovni amalga oshirgach, chek rasmini botga yuborishingiz kerak bo'ladi."
+      "Bizda quyidagi to'lov usullari mavjud:\n"
+      "1. 📱 <b>Click / Payme</b> (Karta raqamiga o'tkazma)\n"
+      "2. 💳 <b>Uzcard / Humo</b> karta o'tkazmasi\n"
+      "3. 💵 <b>Naqd pul</b> (Mahsulotni yetkazib berilganda)"
   )
-  await callback.message.answer(text, parse_mode="HTML")
-  await callback.answer()
-
-
-@dp.callback_query(F.data == "pay_click")
-async def click_payment_info(callback: types.CallbackQuery):
-  await callback.message.answer(
-      "📱 Click orqali to'lash uchun ilovadan <b>'O'tkazma'</b> bo'limiga kirib, "
-      f"<code>{CARD_NUMBER}</code> kartasiga to'lovni bajaring va chekni yuboring.",
-      parse_mode="HTML",
-  )
-  await callback.answer()
+  await message.answer(text, parse_mode="HTML")
 
 
 @dp.message(F.text == "🛍 Mahsulotlar katalogi")
@@ -209,7 +167,9 @@ async def show_catalog(message: types.Message):
   conn.close()
 
   if not products:
-    await message.answer("📦 Hozircha omborda mahsulotlar mavjud emas.")
+    await message.answer(
+        "📦 Hozircha omborda mahsulotlar mavjud emas. Tez orada qo'shiladi!"
+    )
     return
 
   for item in products:
@@ -227,12 +187,132 @@ async def show_catalog(message: types.Message):
       await message.answer(caption, parse_mode="HTML")
 
 
+# --- BUYURTMA BERISH VA TO'LOV QISMI ---
+@dp.message(F.text == "📦 Zakaz berish")
+async def start_checkout(message: types.Message, state: FSMContext):
+  await state.set_state(CheckoutFSM.items)
+  await message.answer(
+      "🛒 <b>Qaysi mahsulotlardan qancha kerakligini yozing:</b>\n"
+      "<i>(Masalan: 10 dona Gipsokarton, 2 qop Sement)</i>",
+      parse_mode="HTML",
+      reply_markup=ReplyKeyboardRemove(),
+  )
+
+
+@dp.message(CheckoutFSM.items)
+async def process_checkout_items(message: types.Message, state: FSMContext):
+  await state.update_data(items=message.text)
+  await state.set_state(CheckoutFSM.phone)
+
+  phone_btn = ReplyKeyboardMarkup(
+      keyboard=[
+          [KeyboardButton(text="📱 Telefon raqamni yuborish", request_contact=True)]
+      ],
+      resize_keyboard=True,
+  )
+  await message.answer(
+      "📞 **Telefon raqamingizni yuboring:**",
+      parse_mode="Markdown",
+      reply_markup=phone_btn,
+  )
+
+
+@dp.message(CheckoutFSM.phone)
+async def process_checkout_phone(message: types.Message, state: FSMContext):
+  phone = (
+      message.contact.phone_number if message.contact else message.text
+  )
+  await state.update_data(phone=phone)
+  await state.set_state(CheckoutFSM.payment_method)
+
+  pay_kb = InlineKeyboardMarkup(
+      inline_keyboard=[
+          [
+              InlineKeyboardButton(
+                  text="📱 Click / Payme / Karta", callback_data="pay_card"
+              )
+          ],
+          [
+              InlineKeyboardButton(
+                  text="💵 Naqd pul (Qabul qilganda)", callback_data="pay_cash"
+              )
+          ],
+      ]
+  )
+  await message.answer(
+      "💳 <b>To'lov usulini tanlang:</b>", parse_mode="HTML", reply_markup=pay_kb
+  )
+
+
+@dp.callback_query(CheckoutFSM.payment_method, F.data == "pay_card")
+async def pay_card_selected(callback: types.CallbackQuery, state: FSMContext):
+  await state.update_data(payment_method="Karta / Click / Payme")
+  await state.set_state(CheckoutFSM.receipt)
+
+  text = (
+      f"💳 <b>To'lov uchun karta raqamimiz:</b>\n\n"
+      f"📌 <code>{CARD_NUMBER}</code>\n"
+      f"👤 <b>Egani:</b> {CARD_HOLDER}\n\n"
+      "To'lovni amalga oshirgach, **chek rasmini** (yoki skrinshotini) shu yerga yuboring 👇"
+  )
+  await callback.message.answer(text, parse_mode="HTML")
+  await callback.answer()
+
+
+@dp.callback_query(CheckoutFSM.payment_method, F.data == "pay_cash")
+async def pay_cash_selected(callback: types.CallbackQuery, state: FSMContext):
+  data = await state.get_data()
+  user_name = callback.from_user.full_name
+
+  text = (
+      f"🚨 <b>YANGI BUYURTMA (Naqd pul)</b>\n"
+      f"━━━━━━━━━━━━━━━━━━\n"
+      f"👤 <b>Mijoz:</b> {user_name}\n"
+      f"📞 <b>Tel:</b> {data['phone']}\n"
+      f"🛒 <b>Buyurtma:</b>\n{data['items']}\n"
+      f"💳 <b>To'lov turi:</b> Naqd pul"
+  )
+
+  await bot.send_message(chat_id=ORDERS_GROUP_ID, text=text, parse_mode="HTML")
+  await callback.message.answer(
+      "✅ Buyurtmangiz qabul qilindi! Tez orada operatorlarimiz bog'lanishadi.",
+      reply_markup=main_menu_keyboard(),
+  )
+  await state.clear()
+  await callback.answer()
+
+
+@dp.message(CheckoutFSM.receipt, F.photo)
+async def process_receipt(message: types.Message, state: FSMContext):
+  data = await state.get_data()
+  user_name = message.from_user.full_name
+  photo_id = message.photo[-1].file_id
+
+  text = (
+      f"🚨 <b>YANGI BUYURTMA (Karta / Click)</b>\n"
+      f"━━━━━━━━━━━━━━━━━━\n"
+      f"👤 <b>Mijoz:</b> {user_name}\n"
+      f"📞 <b>Tel:</b> {data['phone']}\n"
+      f"🛒 <b>Buyurtma:</b>\n{data['items']}\n"
+      f"💳 <b>To'lov turi:</b> Karta (Chek rasmi biriktirilgan)"
+  )
+
+  await bot.send_photo(
+      chat_id=ORDERS_GROUP_ID, photo=photo_id, caption=text, parse_mode="HTML"
+  )
+  await message.answer(
+      "✅ Chek va buyurtmangiz qabul qilindi! Tez orada operatorlarimiz bog'lanishadi.",
+      reply_markup=main_menu_keyboard(),
+  )
+  await state.clear()
+
+
 @dp.message(F.text == "📞 Biz bilan aloqa")
 async def contact_handler(message: types.Message):
   await message.answer(
       "📞 <b>STROY SENTR Aloqa markazi:</b>\n\n"
-      "📱 Telefon: +998 97 105 16 56\n"
-      "💬 Admin: @\DataCrafterss\n"
+      "📱 Telefon: +998 90 XXX XX XX\n"
+      "💬 Admin: @stroy_sentr_admin\n"
       "⏰ Ish vaqti: 08:00 - 19:00",
       parse_mode="HTML",
   )
@@ -241,14 +321,14 @@ async def contact_handler(message: types.Message):
 @dp.message(F.text == "📍 Do'konimiz manzili")
 async def location_handler(message: types.Message):
   await message.answer(
-      "📍 <b>Do'konimiz manzili:</b>\n\nYaypan shahri, STROY SENTR "
-      " 1-maktab yonida.",
+      "📍 <b>Do'konimiz manzili:</b>\n\nYaypan shahri, STROY SENTR qurilish"
+      " do'koni.",
       parse_mode="HTML",
   )
 
 
 # ==========================================
-# 6. ADMIN PANEL & OMBOR
+# 6. ADMIN PANEL
 # ==========================================
 @dp.message(Command("admin"), F.from_user.id.in_(ADMIN_IDS))
 async def admin_panel(message: types.Message):
@@ -359,24 +439,6 @@ async def view_stock(callback: types.CallbackQuery):
 
   await callback.message.answer(text, parse_mode="HTML")
   await callback.answer()
-
-
-@dp.callback_query(F.data.startswith("confirm_"))
-async def confirm_order(callback: types.CallbackQuery):
-  await callback.message.edit_caption(
-      caption=f"{callback.message.caption}\n\n✅ <b>BUYURTMA TASDIQLANDI!</b>",
-      parse_mode="HTML",
-  )
-  await callback.answer("Buyurtma tasdiqlandi!")
-
-
-@dp.callback_query(F.data.startswith("cancel_"))
-async def cancel_order(callback: types.CallbackQuery):
-  await callback.message.edit_caption(
-      caption=f"{callback.message.caption}\n\n❌ <b>BUYURTMA BEKOR QILINDI!</b>",
-      parse_mode="HTML",
-  )
-  await callback.answer("Buyurtma bekor qilindi!")
 
 
 # ==========================================
