@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STROY SENTR Do'koni</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 15px; background-color: #f4f6f8; }
+        h2 { text-align: center; color: #333; }
+        .product-card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .product-title { font-size: 18px; font-weight: bold; color: #222; }
+        .product-price { font-size: 16px; color: #0088cc; margin: 8px 0; }
+        .btn-add { background: #0088cc; color: white; border: none; padding: 10px 15px; border-radius: 5px; width: 100%; font-size: 16px; cursor: pointer; }
+        .cart-summary { margin-top: 20px; font-size: 18px; font-weight: bold; text-align: center; }
+    </style>
+</head>
+<body>
+    <h2>🏗 STROY SENTR Catalog</h2>
+    
+    <div class="product-card">
+        <div class="product-title">📦 Cement 50kg</div>
+        <div class="product-price">65,000 so'm</div>
+        <button class="btn-add" onclick="addToCart('Cement 50kg', 65000)">Savatga qo'shish</button>
+    </div>
+
+    <div class="product-card">
+        <div class="product-title">🧱 Gipsokarton Knauf</div>
+        <div class="product-price">48,000 so'm</div>
+        <button class="btn-add" onclick="addToCart('Gipsokarton Knauf', 48000)">Savatga qo'shish</button>
+    </div>
+
+    <div class="cart-summary" id="cart-total">Savat: 0 so'm</div>
+
+    <script>
+        let tg = window.Telegram.WebApp;
+        tg.expand(); // Ekranni to'liq ochish
+
+        let cart = [];
+        let total = 0;
+
+        function addToCart(name, price) {
+            cart.push({name, price});
+            total += price;
+            document.getElementById('cart-total').innerText = `Savat: ${total.toLocaleString()} so'm (${cart.length} ta)`;
+            
+            tg.MainButton.text = `Buyurtma berish (${total.toLocaleString()} so'm)`;
+            tg.MainButton.show();
+        }
+
+        tg.MainButton.onClick(function() {
+            let orderText = cart.map(i => i.name).join(", ");
+            tg.sendData(JSON.stringify({items: orderText, total_price: total}));
+        });
+    </script>
+</body>
+</html>
