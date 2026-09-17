@@ -3,7 +3,7 @@ import logging
 import os
 import sqlite3
 from aiogram import Bot, Dispatcher, F, types
-from aiogram.filters import Command, StateFilter
+from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -13,25 +13,28 @@ from aiogram.types import (
     InlineKeyboardMarkup,
     KeyboardButton,
     ReplyKeyboardMarkup,
-    ReplyKeyboardRemove,
 )
 from aiohttp import web
 
 logging.basicConfig(level=logging.INFO)
 
 # ==========================================
-# ⚙️ SIZNING MA'LUMOTLARINGIZ
+# ⚙️ SOZLAMALAR VA TO'LOV KARTASI
 # ==========================================
-BOT_TOKEN = "8599909804:AAGrZoiDTW-dxkoOgyKCbGNBR841TAcchp4"  # BotFather bergan token
-ADMIN_IDS = [6986848905]  # Telegram ID'ingiz (@userinfobot bergan raqam)
-ORDERS_GROUP_ID = --1004434264658  # Guruh ID'si (-100 bilan boshlanadi)
+BOT_TOKEN = "8599909804:AAGrZoiDTW-dxkoOgyKCbGNBR841TAcchp4"  # BotFather tokeni
+ADMIN_IDS = [6986848905]  # Telegram ID'ingiz
+ORDERS_GROUP_ID = -1004434264658 # Guruh ID'si
+
+# 💳 Do'konning plastic karta ma'lumotlari:
+CARD_NUMBER = "4097 8300 8361 0556"
+CARD_HOLDER = "Sadriddin Abduraxmonov"
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
 
 # ==========================================
-# 1. ADMIN UCHUN TOVAR QO'SHISH HOLATLARI (FSM)
+# 1. FSM HOLATLARI (TOVAR QO'SHISH VA TO'LOV)
 # ==========================================
 class AddProductFSM(StatesGroup):
   name = State()
@@ -40,8 +43,14 @@ class AddProductFSM(StatesGroup):
   photo = State()
 
 
+class CheckoutFSM(StatesGroup):
+  phone = State()
+  payment_method = State()
+  receipt = State()
+
+
 # ==========================================
-# 2. DATABASE (MA'LUMOTLAR BAZASI)
+# 2. DATABASE
 # ==========================================
 def init_db():
   conn = sqlite3.connect("stroy_sentr.db")
@@ -61,8 +70,8 @@ def init_db():
             user_id INTEGER,
             user_name TEXT,
             phone TEXT,
+            payment_method TEXT,
             total_amount REAL,
-            items TEXT,
             status TEXT DEFAULT 'pending'
         )
     """)
@@ -71,7 +80,7 @@ def init_db():
 
 
 # ==========================================
-# 3. RENDER 24/7 VEB-SERVERI
+# 3. RENDER SERVER
 # ==========================================
 async def handle_ping(request):
   return web.Response(
@@ -90,29 +99,8 @@ async def start_web_server():
 
 
 # ==========================================
-# 4. BOT SOZLAMALARI VA MENYU
+# 4. MENYULAR
 # ==========================================
-async def set_bot_meta_info(bot: Bot):
-  description_text = (
-      "🏗 STROY SENTR — Qurilish mollari, pardozlash mahsulotlari, "
-      "online zakaz qilish va yetkazib berish xizmati.\n\n"
-      "Usta va xaridorlar uchun qulay hamda tezkor do'kon!"
-  )
-  await bot.set_my_description(description_text)
-
-  short_description = (
-      "Stroy center qurilish mollari, pardozlash mahsulotlari, online zakaz"
-      " qilish va yetkazib berish xizmati."
-  )
-  await bot.set_my_short_description(short_description)
-
-  commands = [
-      BotCommand(command="start", description="Botni qayta ishga tushirish"),
-      BotCommand(command="admin", description="Admin Panel (Faqat egalari uchun)"),
-  ]
-  await bot.set_my_commands(commands)
-
-
 def main_menu_keyboard():
   kb = [
       [
@@ -120,12 +108,44 @@ def main_menu_keyboard():
           KeyboardButton(text="📦 Zakaz berish"),
       ],
       [
-          KeyboardButton(text="🚚 Yetkazib berish shartlari"),
-          KeyboardButton(text="📞 Biz bilan aloqa"),
+          KeyboardButton(text="💳 To'lov usullari"),
+          KeyboardButton(text="🚚 Yetkazib berish"),
       ],
-      [KeyboardButton(text="📍 Do'konimiz manzili")],
+      [
+          KeyboardButton(text="📞 Biz bilan aloqa"),
+          KeyboardButton(text="📍 Do'konimiz manzili"),
+      ],
   ]
   return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+
+
+def payment_methods_keyboard():
+  kb = InlineKeyboardMarkup(
+      inline_keyboard=[
+          [
+              InlineKeyboardButton(
+                  text="🔹 Click orqali to'lov", callback_data="pay_click"
+              )
+          ],
+          [
+              InlineKeyboardButton(
+                  text="🔹 Payme orqali to'lov", callback_data="pay_payme"
+              )
+          ],
+          [
+              InlineKeyboardButton(
+                  text="💳 Karta raqamiga o'tkazish (Chek yuborish)",
+                  callback_data="pay_card",
+              )
+          ],
+          [
+              InlineKeyboardButton(
+                  text="💵 Naqd pul (Qabul qilganda)", callback_data="pay_cash"
+              )
+          ],
+      ]
+  )
+  return kb
 
 
 # ==========================================
@@ -135,14 +155,49 @@ def main_menu_keyboard():
 async def start_handler(message: types.Message):
   welcome_text = (
       f"Assalomu alaykum, {message.from_user.full_name}!\n\n"
-      "🏗 **STROY SENTR** rasmiy botiga xush kelibsiz!\n\n"
-      "Bu yerda siz qurilish va pardozlash mahsulotlarini onlayn zakaz qilishingiz "
-      "va manzilingizga yetkazib berish xizmatidan foydalanishingiz mumkin.\n\n"
+      "🏗 <b>STROY SENTR</b> rasmiy botiga xush kelibsiz!\n\n"
       "Kerakli bo'limni tanlang 👇"
   )
   await message.answer(
-      welcome_text, parse_mode="Markdown", reply_markup=main_menu_keyboard()
+      welcome_text, parse_mode="HTML", reply_markup=main_menu_keyboard()
   )
+
+
+@dp.message(F.text == "💳 To'lov usullari")
+async def payment_info(message: types.Message):
+  text = (
+      "💳 <b>STROY SENTR To'lov tizimlari:</b>\n\n"
+      "Bizda quyidagi to'lov turlari mavjud:\n"
+      "1. 📱 <b>Click / Payme</b> ilovalari orqali\n"
+      "2. 💳 <b>Karta raqamiga o'tkazma</b> (Uzcard/Humo)\n"
+      "3. 💵 <b>Naqd pul</b> (Mahsulot yetib borgach)\n\n"
+      "👇 Buyurtma berishda mos to'lov usulini tanlaysiz."
+  )
+  await message.answer(
+      text, parse_mode="HTML", reply_markup=payment_methods_keyboard()
+  )
+
+
+@dp.callback_query(F.data == "pay_card")
+async def card_payment_info(callback: types.CallbackQuery):
+  text = (
+      f"💳 <b>Karta orqali to'lov rekvizitlari:</b>\n\n"
+      f"📌 <b>Karta:</b> <code>{CARD_NUMBER}</code>\n"
+      f"👤 <b>Egani:</b> {CARD_HOLDER}\n\n"
+      f"To'lovni amalga oshirgach, chek rasmini botga yuborishingiz kerak bo'ladi."
+  )
+  await callback.message.answer(text, parse_mode="HTML")
+  await callback.answer()
+
+
+@dp.callback_query(F.data == "pay_click")
+async def click_payment_info(callback: types.CallbackQuery):
+  await callback.message.answer(
+      "📱 Click orqali to'lash uchun ilovadan <b>'O'tkazma'</b> bo'limiga kirib, "
+      f"<code>{CARD_NUMBER}</code> kartasiga to'lovni bajaring va chekni yuboring.",
+      parse_mode="HTML",
+  )
+  await callback.answer()
 
 
 @dp.message(F.text == "🛍 Mahsulotlar katalogi")
@@ -154,9 +209,7 @@ async def show_catalog(message: types.Message):
   conn.close()
 
   if not products:
-    await message.answer(
-        "📦 Hozircha omborda mahsulotlar mavjud emas. Tez orada qo'shiladi!"
-    )
+    await message.answer("📦 Hozircha omborda mahsulotlar mavjud emas.")
     return
 
   for item in products:
@@ -177,25 +230,25 @@ async def show_catalog(message: types.Message):
 @dp.message(F.text == "📞 Biz bilan aloqa")
 async def contact_handler(message: types.Message):
   await message.answer(
-      "📞 **STROY SENTR Aloqa markazi:**\n\n"
+      "📞 <b>STROY SENTR Aloqa markazi:</b>\n\n"
       "📱 Telefon: +998 97 105 16 56\n"
-      "💬 Admin: @DataCrafterss\n"
-      "⏰ Ish vaqti: 08:00 - 18:00",
-      parse_mode="Markdown",
+      "💬 Admin: @\DataCrafterss\n"
+      "⏰ Ish vaqti: 08:00 - 19:00",
+      parse_mode="HTML",
   )
 
 
 @dp.message(F.text == "📍 Do'konimiz manzili")
 async def location_handler(message: types.Message):
   await message.answer(
-      "📍 **Do'konimiz manzili:**\n\nYaypan shahri, STROY SENTR "
+      "📍 <b>Do'konimiz manzili:</b>\n\nYaypan shahri, STROY SENTR "
       " 1-maktab yonida.",
-      parse_mode="Markdown",
+      parse_mode="HTML",
   )
 
 
 # ==========================================
-# 6. ADMIN PANEL & OMBORGA TOVAR JOYLASHDIRISH
+# 6. ADMIN PANEL & OMBOR
 # ==========================================
 @dp.message(Command("admin"), F.from_user.id.in_(ADMIN_IDS))
 async def admin_panel(message: types.Message):
@@ -212,11 +265,6 @@ async def admin_panel(message: types.Message):
                   callback_data="admin_stock",
               )
           ],
-          [
-              InlineKeyboardButton(
-                  text="📊 Oylik Hisobot", callback_data="admin_report"
-              )
-          ],
       ]
   )
   await message.answer(
@@ -226,15 +274,13 @@ async def admin_panel(message: types.Message):
   )
 
 
-# --- Tovar qo'shish dialogi boshlanishi ---
 @dp.callback_query(F.data == "add_product", F.from_user.id.in_(ADMIN_IDS))
 async def add_product_start(
     callback: types.CallbackQuery, state: FSMContext
 ):
   await state.set_state(AddProductFSM.name)
   await callback.message.answer(
-      "📝 <b>Yangi tovar nomini kiriting:</b>\n<i>(Masalan: KNAUF Gipsokarton 12.5mm)</i>",
-      parse_mode="HTML",
+      "📝 <b>Yangi tovar nomini kiriting:</b>", parse_mode="HTML"
   )
   await callback.answer()
 
@@ -244,8 +290,7 @@ async def process_name(message: types.Message, state: FSMContext):
   await state.update_data(name=message.text)
   await state.set_state(AddProductFSM.price)
   await message.answer(
-      "💰 <b>Tovar narxini kiriting (so'mda):</b>\n<i>(Masalan: 75000)</i>",
-      parse_mode="HTML",
+      "💰 <b>Tovar narxini kiriting (so'mda):</b>", parse_mode="HTML"
   )
 
 
@@ -255,12 +300,9 @@ async def process_price(message: types.Message, state: FSMContext):
     price = float(message.text)
     await state.update_data(price=price)
     await state.set_state(AddProductFSM.stock)
-    await message.answer(
-        "📦 <b>Ombordagi miqdorini kiriting:</b>\n<i>(Masalan: 150)</i>",
-        parse_mode="HTML",
-    )
+    await message.answer("📦 <b>Ombordagi miqdorini kiriting:</b>", parse_mode="HTML")
   except ValueError:
-    await message.answer("❌ Iltimos, narxni faqat raqamlarda kiriting!")
+    await message.answer("❌ Narxni raqamlarda kiriting!")
 
 
 @dp.message(AddProductFSM.stock)
@@ -270,20 +312,17 @@ async def process_stock(message: types.Message, state: FSMContext):
     await state.update_data(stock=stock)
     await state.set_state(AddProductFSM.photo)
     await message.answer(
-        "🖼 <b>Tovar rasmini yuboring:</b>\n<i>(Rasm bo'lmasa 'O'tkazib yuborish' deb yozing)</i>",
+        "🖼 <b>Tovar rasmini yuboring (yoki 'yoq' deb yozing):</b>",
         parse_mode="HTML",
     )
   except ValueError:
-    await message.answer("❌ Iltimos, miqdorni butun raqamda kiriting!")
+    await message.answer("❌ Miqdorni butun raqamda kiriting!")
 
 
 @dp.message(AddProductFSM.photo)
 async def process_photo(message: types.Message, state: FSMContext):
   data = await state.get_data()
-
-  photo_id = None
-  if message.photo:
-    photo_id = message.photo[-1].file_id
+  photo_id = message.photo[-1].file_id if message.photo else None
 
   conn = sqlite3.connect("stroy_sentr.db")
   cursor = conn.cursor()
