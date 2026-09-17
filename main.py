@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import sqlite3
+import json
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -99,7 +100,42 @@ async def start_web_server():
   port = int(os.environ.get("PORT", 10000))
   site = web.TCPSite(runner, "0.0.0.0", port)
   await site.start()
+# ==========================================
+# MINI APP (WEB APP) BUYURTMALARINI QABUL QILISH
+# ==========================================
+@dp.message(F.web_app_data)
+async def web_app_order_handler(message: types.Message):
+  try:
+    data = json.loads(message.web_app_data.data)
+    items = data.get("items", "Ko'rsatilmadi")
+    total_price = data.get("total_price", 0)
 
+    user_name = message.from_user.full_name
+    username = (
+        f"@{message.from_user.username}"
+        if message.from_user.username
+        else "Mavjud emas"
+    )
+
+    text = (
+        f"🛍 <b>MINI APP ORQALI YANGI BUYURTMA!</b>\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"👤 <b>Mijoz:</b> {user_name} ({username})\n"
+        f"📦 <b>Mahsulotlar:</b> {items}\n"
+        f"💰 <b>Jami summa:</b> {total_price:,.0f} so'm\n"
+    )
+
+    await message.answer(
+        f"✅ <b>Buyurtmangiz qabul qilindi!</b>\n\n"
+        f"📦 <b>Tanlangan buyurtma:</b> {items}\n"
+        f"💰 <b>Jami summa:</b> {total_price:,.0f} so'm",
+        parse_mode="HTML",
+    )
+    await bot.send_message(
+        chat_id=ORDERS_GROUP_ID, text=text, parse_mode="HTML"
+    )
+  except Exception as e:
+    logging.error(f"Web App error: {e}")
 
 # ==========================================
 # 4. MENYULAR VA TUGMALAR
