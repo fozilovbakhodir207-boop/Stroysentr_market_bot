@@ -403,15 +403,13 @@ async def start_server():
 
 
 async def main():
-  # BIRINCHI: Veb-serverni ishga tushiramiz (Render portni darhol ko'rishi uchun)
-  await start_server()
-
-  # IKKINCHI: Bot pollingini yoqamiz
-  await dp.start_polling(bot)
-
+    # 1. BIRINCHI: Veb-serverni ishga tushiramiz (Render portni darhol ko'rishi uchun)
+    await start_server()
+    # 2. IKKINCHI: Bot pollingini yoqamiz
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
-  asyncio.run(main())
+    asyncio.run(main())
   await start_server()
   await dp.start_polling(bot)
 
