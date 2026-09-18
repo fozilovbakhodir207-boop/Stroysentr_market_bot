@@ -54,10 +54,10 @@
         }
 
         // Admin panelini tekshirish
-      const user_id = tg?.initDataUnsafe?.user?.id;
-console.log("Mening ID:", user_id);
+  const ADMIN_ID = 6986848905;
+const user_id = tg?.initDataUnsafe?.user?.id;
 
-// ID mos kelsa yoki Mini App brauzerda ochilgan bo'lsa panelni ko'rsatish
+// Admin ID mos kelsa yoki brauzerdan kirilgan bo'lsa panelni ko'rsatish
 if (String(user_id) === String(ADMIN_ID) || !user_id) {
     document.getElementById('admin-panel').style.display = 'block';
 }
