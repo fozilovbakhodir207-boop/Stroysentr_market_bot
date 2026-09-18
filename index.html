@@ -72,7 +72,10 @@
             <div class="input-group"><input type="text" id="p-title" placeholder="Tovar nomi (Masalan: Sement 50kg)"></div>
             <div class="input-group"><input type="number" id="p-price" placeholder="Narxi (so'm)"></div>
             <div class="input-group"><input type="number" id="p-stock" placeholder="Ombordagi soni (shtuka)"></div>
-            <div class="input-group"><input type="text" id="p-image" placeholder="Rasm havolasi (URL)"></div>
+           <div class="file-upload" onclick="document.getElementById('p-image-file').click()" style="border: 2px dashed #7000ff; border-radius: 10px; padding: 12px; text-align: center; background: #faf5ff; cursor: pointer; margin-bottom: 12px; font-size: 13px;">
+    <span id="product-upload-label">🖼 Galereyadan rasm tanlash (➕)</span>
+    <input type="file" id="p-image-file" accept="image/*" style="display: none;" onchange="updateFileLabel(this)">
+</div>
             <button class="add-btn" style="background: #e65100;" onclick="adminAddProduct()">Saqlash</button>
         </div>
 
@@ -287,7 +290,48 @@
             }
         }
 
+        image();
+   function updateFileLabel(input) {
+    if (input.files && input.files[0]) {
+        document.getElementById('product-upload-label').innerText = "✅ Rasm tanlandi: " + input.files[0].name;
+    }
+}
+
+async function adminAddProduct() {
+    let title = document.getElementById('p-title').value;
+    let price = document.getElementById('p-price').value;
+    let stock = document.getElementById('p-stock').value;
+    let fileInput = document.getElementById('p-image-file');
+
+    if (!title || !price || !stock || !fileInput.files[0]) {
+        alert("Barcha maydonlarni to'ldiring va galereyadan rasmni tanlang!");
+        return;
+    }
+
+    let formData = new FormData();
+    formData.append('user_id', tg.initDataUnsafe?.user?.id || ADMIN_ID);
+    formData.append('title', title);
+    formData.append('price', price);
+    formData.append('stock', stock);
+    formData.append('image', fileInput.files[0]);
+
+    let res = await fetch('/api/products', {
+        method: 'POST',
+        body: formData
+    });
+
+    let data = await res.json();
+    if (data.status === 'success') {
+        alert("Mahsulot muvaffaqiyatli saqlandi!");
+        document.getElementById('p-title').value = '';
+        document.getElementById('p-price').value = '';
+        document.getElementById('p-stock').value = '';
+        fileInput.value = '';
+        document.getElementById('product-upload-label').innerText = "🖼 Galereyadan rasm tanlash (➕)";
         loadProducts();
-    </script>
+    } else {
+        alert("Xatolik: " + data.message);
+    }
+}
 </body>
 </html>
