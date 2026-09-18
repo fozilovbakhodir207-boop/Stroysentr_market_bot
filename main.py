@@ -100,7 +100,6 @@ async def handle_get_products(request):
 
 async def handle_add_product(request):
     try:
-        # JSON yoki FormData ekanligini avtomatik aniqlaydi
         if request.content_type == 'application/json':
             data = await request.json()
         else:
@@ -128,9 +127,6 @@ async def handle_add_product(request):
     except Exception as e:
         logging.error(f"Add product error: {e}")
         return web.json_response({'status': 'error', 'message': str(e)}, status=500)
-
-    title = data.get("title")
-    price = float(data.get("price"))
     stock = int(data.get("stock"))
     image_url = data.get("image_url", "")
 
