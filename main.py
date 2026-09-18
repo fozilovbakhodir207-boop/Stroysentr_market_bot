@@ -9,6 +9,12 @@ from aiohttp import web
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
 from aiogram.fsm.storage.memory import MemoryStorage
+import os
+import uuid
+
+# Rasmlar saqlanadigan papka
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # ==========================================
 # CONFIGURE LOGGING & CONFIG
@@ -302,7 +308,62 @@ async def start_server():
   app = web.Application()
   # API routelari
   app.router.add_get("/api/products", handle_get_products)
-  app.router.add_post("/api/products", handle_add_product)
+async def handle_add_product(request):
+  try:
+    reader = await request.multipart()
+    title, price, stock, user_id = None, None, None, None
+    filename_saved = ""
+
+    while True:
+      part = await reader.next()
+      if part is None:
+        break
+
+      if part.name == "user_id":
+        user_id = int(await part.text())
+      elif part.name == "title":
+        title = await part.text()
+      elif part.name == "price":
+        price = float(await part.text())
+      elif part.name == "stock":
+        stock = int(await part.text())
+      elif part.name == "image" and part.filename:
+        ext = os.path.splitext(part.filename)[1] or ".jpg"
+        unique_name = f"{uuid.uuid4().hex}{ext}"
+        file_path = os.path.join(UPLOAD_DIR, unique_name)
+
+        # Rasmni uploads papkasiga saqlash
+        with open(file_path, "wb") as f:
+          while True:
+            chunk = await part.read_chunk()
+            if not chunk:
+              break
+            f.write(chunk)
+
+        filename_saved = f"/uploads/{unique_name}"
+
+    if user_id != ADMIN_ID:
+      return web.json_response(
+          {"status": "error", "message": "Ruxsat berilmagan!"}, status=403
+      )
+
+    conn = sqlite3.connect("store.db")
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO products (title, price, stock, image_url) VALUES (?, ?,"
+        " ?, ?)",
+        (title, price, stock, filename_saved),
+    )
+    conn.commit()
+    conn.close()
+
+    return web.json_response(
+        {"status": "success", "message": "Mahsulot muvaffaqiyatli saqlandi!"}
+    )
+
+  except Exception as e:
+    logging.error(f"Add product error: {e}")
+    return web.json_response({"status": "error", "message": str(e)}, status=500) 
   app.router.add_post("/api/order", handle_create_order)
 
   # HTML faylni static berish
