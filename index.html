@@ -120,11 +120,17 @@
     </div>
 
     <script>
-        let tg = window.Telegram.WebApp;
         tg.expand();
+        const tg = window.Telegram?.WebApp;
+tg?.expand();
 
-        const ADMIN_ID = 6986848905
-; // O'zingizning Telegram ID-ingizni kiriting
+// Sizning Telegram ID'ingiz to'g'ri yozilganini tekshiring
+const ADMIN_ID = 6986848905; // O'zingizning Telegram ID ingizni yozing
+
+if (tg?.initDataUnsafe?.user?.id === ADMIN_ID) {
+    // Admin tugmalarini ko'rsatish mantig'i
+    document.getElementById('admin-panel').style.display = 'block';
+}
         let cart = {};
         let productsData = [];
         let base64Receipt = "";
