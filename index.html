@@ -54,10 +54,13 @@
         }
 
         // Admin panelini tekshirish
-        const user_id = tg?.initDataUnsafe?.user?.id;
-        if (user_id == ADMIN_ID) {
-            document.getElementById('admin-panel').style.display = 'block';
-        }
+      const user_id = tg?.initDataUnsafe?.user?.id;
+console.log("Mening ID:", user_id);
+
+// ID mos kelsa yoki Mini App brauzerda ochilgan bo'lsa panelni ko'rsatish
+if (String(user_id) === String(ADMIN_ID) || !user_id) {
+    document.getElementById('admin-panel').style.display = 'block';
+}
 
         let productsData = [];
 
