@@ -143,7 +143,7 @@ if (tg?.initDataUnsafe?.user?.id === ADMIN_ID) {
         // 1. Tovar ro'yxatini backend'dan olish
         async function loadProducts() {
             try {
-                let res = await fetch('/api/products');
+               let res = await fetch('https://stroysentr-market-bot.onrender.com/api/products'); 
                 let data = await res.json();
                 productsData = data.products || [];
                 renderProducts();
@@ -214,14 +214,14 @@ if (tg?.initDataUnsafe?.user?.id === ADMIN_ID) {
                 return;
             }
 
-            let res = await fetch('/api/products', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    user_id: tg.initDataUnsafe?.user?.id || ADMIN_ID,
-                    title, price, stock, image_url
-                })
-            });
+          let res = await fetch('https://stroysentr-market-bot.onrender.com/api/products', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        user_id: tg.initDataUnsafe?.user?.id || ADMIN_ID,
+        title, price, stock, image_url
+    })
+});
 
             let data = await res.json();
             if (data.status === 'success') {
@@ -272,7 +272,7 @@ if (tg?.initDataUnsafe?.user?.id === ADMIN_ID) {
             let total = itemsArray.reduce((acc, i) => acc + (i.price * i.qty), 0);
             let user = tg.initDataUnsafe?.user || { id: 0, first_name: "Xaridor" };
 
-            let res = await fetch('/api/order', {
+            let res = await fetch('https://stroysentr-market-bot.onrender.com/api/products', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
@@ -321,7 +321,7 @@ async function adminAddProduct() {
     formData.append('stock', stock);
     formData.append('image', fileInput.files[0]);
 
-    let res = await fetch('/api/products', {
+   let res = await fetch('https://stroysentr-market-bot.onrender.com/api/products', {
         method: 'POST',
         body: formData
     });
@@ -334,7 +334,7 @@ async function adminAddProduct() {
         document.getElementById('p-stock').value = '';
         fileInput.value = '';
         document.getElementById('product-upload-label').innerText = "🖼 Galereyadan rasm tanlash (➕)";
-        loadProducts();
+       fetch('https://stroysentr-market-bot.onrender.com/api/products')
     } else {
         alert("Xatolik: " + data.message);
     }
