@@ -380,7 +380,38 @@ async def handle_add_product(request):
   logging.info(f"Server started on port {port}")
 
 
+async def start_server():
+  app = web.Application()
+  app.router.add_static("/uploads", UPLOAD_DIR)
+  app.router.add_get("/api/products", handle_get_products)
+  app.router.add_post("/api/products", handle_add_product)
+  app.router.add_post("/api/order", handle_create_order)
+
+  async def index(request):
+    return web.FileResponse("./index.html")
+
+  app.router.add_get("/", index)
+
+  runner = web.AppRunner(app)
+  await runner.setup()
+
+  # Render beradigan PORT ni o'qiymiz
+  port = int(os.getenv("PORT", 10000))
+  site = web.TCPSite(runner, "0.0.0.0", port)
+  await site.start()
+  logging.info(f"Server started on port {port}")
+
+
 async def main():
+  # BIRINCHI: Veb-serverni ishga tushiramiz (Render portni darhol ko'rishi uchun)
+  await start_server()
+
+  # IKKINCHI: Bot pollingini yoqamiz
+  await dp.start_polling(bot)
+
+
+if __name__ == "__main__":
+  asyncio.run(main())
   await start_server()
   await dp.start_polling(bot)
 
