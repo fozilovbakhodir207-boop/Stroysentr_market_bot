@@ -99,15 +99,35 @@ async def handle_get_products(request):
 
 
 async def handle_add_product(request):
-  """Mini App ichidan Admin mahsulot qo'shishi uchun API"""
-  try:
-    data = await request.json()
-    user_id = int(data.get("user_id", 0))
+    try:
+        # JSON yoki FormData ekanligini avtomatik aniqlaydi
+        if request.content_type == 'application/json':
+            data = await request.json()
+        else:
+            data = await request.post()
 
-    if user_id != ADMIN_ID:
-      return web.json_response(
-          {"status": "error", "message": "Ruxsat berilmagan!"}, status=403
-      )
+        user_id = str(data.get('user_id', ''))
+        title = data.get('title')
+        price = data.get('price')
+        stock = data.get('stock')
+        image_url = data.get('image_url', '')
+
+        if user_id != str(ADMIN_ID):
+            return web.json_response({'status': 'error', 'message': 'Ruxsat berilmagan'}, status=403)
+
+        conn = sqlite3.connect("store.db")
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO products (title, price, stock, image_url) VALUES (?, ?, ?, ?)",
+            (title, price, stock, image_url)
+        )
+        conn.commit()
+        conn.close()
+
+        return web.json_response({'status': 'success'})
+    except Exception as e:
+        logging.error(f"Add product error: {e}")
+        return web.json_response({'status': 'error', 'message': str(e)}, status=500)
 
     title = data.get("title")
     price = float(data.get("price"))
