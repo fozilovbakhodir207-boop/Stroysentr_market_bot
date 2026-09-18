@@ -143,8 +143,8 @@ async def handle_add_product(request):
     return web.json_response(
         {"status": "success", "message": "Mahsulot qo'shildi!"}
     )
-except Exception as e:
-    return web.json_response({"status": "error", "message": str(e)}, status=500)
+ except Exception as e:
+     return web.json_response({"status": "error", "message": str(e)}, status=500)
 
 
 async def handle_create_order(request):
