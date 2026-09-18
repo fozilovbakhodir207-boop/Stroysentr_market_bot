@@ -95,16 +95,48 @@
             });
         }
 
-        async function addProduct() {
-            let title = document.getElementById('p-title').value;
-            let price = document.getElementById('p-price').value;
-            let stock = document.getElementById('p-stock').value;
-            let image_url = document.getElementById('p-image').value;
+      async function addProduct() {
+    let title = document.getElementById('p-title').value;
+    let price = document.getElementById('p-price').value;
+    let stock = document.getElementById('p-stock').value;
+    let image_url = document.getElementById('p-image').value;
 
-            if (!title || !price || !stock) {
-                alert("Barcha maydonlarni to'ldiring!");
-                return;
-            }
+    if (!title || !price || !stock) {
+        alert("Barcha maydonlarni to'ldiring!");
+        return;
+    }
+
+    try {
+        let formData = new FormData();
+        formData.append('user_id', user_id || ADMIN_ID);
+        formData.append('title', title);
+        formData.append('price', price);
+        formData.append('stock', stock);
+        formData.append('image_url', image_url);
+
+        let res = await fetch(API_URL, {
+            method: 'POST',
+            body: formData
+        });
+
+        let data = await res.json();
+        if (data.status === 'success') {
+            alert("Mahsulot muvaffaqiyatli qo'shildi!");
+            
+            document.getElementById('p-title').value = '';
+            document.getElementById('p-price').value = '';
+            document.getElementById('p-stock').value = '';
+            document.getElementById('p-image').value = '';
+            
+            loadProducts();
+        } else {
+            alert("Xatolik: " + (data.message || data.error || 'Qo\'shib bo\'lmadi'));
+        }
+    } catch (e) {
+        console.error(e);
+        alert("So'rov yuborishda xatolik yuz berdi");
+    }
+}
 
             try {
                 let res = await fetch(API_URL, {
