@@ -46,21 +46,18 @@
     <script>
         const API_URL = 'https://stroysentr-market-bot.onrender.com/api/products';
         const tg = window.Telegram?.WebApp;
-        const ADMIN_ID = 6986848905; // Admin Telegram ID
+        const ADMIN_ID = 6986848905;
 
         if (tg) {
             tg.ready();
             tg.expand();
         }
 
-        // Admin panelini tekshirish
-  const ADMIN_ID = 6986848905;
-const user_id = tg?.initDataUnsafe?.user?.id;
-
-// Admin ID mos kelsa yoki brauzerdan kirilgan bo'lsa panelni ko'rsatish
-if (String(user_id) === String(ADMIN_ID) || !user_id) {
-    document.getElementById('admin-panel').style.display = 'block';
-}
+        const user_id = tg?.initDataUnsafe?.user?.id;
+        // Admin panelini ko'rsatish
+        if (String(user_id) === String(ADMIN_ID) || !user_id) {
+            document.getElementById('admin-panel').style.display = 'block';
+        }
 
         let productsData = [];
 
@@ -131,7 +128,6 @@ if (String(user_id) === String(ADMIN_ID) || !user_id) {
             }
         }
 
-        // Dastlabki yuklash
         loadProducts();
     </script>
 </body>
