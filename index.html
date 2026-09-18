@@ -141,16 +141,17 @@ if (tg?.initDataUnsafe?.user?.id === ADMIN_ID) {
         }
 
         // 1. Tovar ro'yxatini backend'dan olish
-        async function loadProducts() {
-            try {
-               let res = await fetch('https://stroysentr-market-bot.onrender.com/api/products'); 
-                let data = await res.json();
-                productsData = data.products || [];
-                renderProducts();
-            } catch (e) {
-                console.error(e);
-            }
-        }
+      async function loadProducts() {
+    try {
+        let res = await fetch('https://stroysentr-market-bot.onrender.com/api/products');
+        let data = await res.json();
+        productsData = data.products || [];
+        renderProducts();
+    } catch (e) {
+        console.error(e);
+        document.getElementById('products-grid').innerHTML = '<p style="text-align:center; padding: 20px;">Mahsulotlar topilmadi yoki yuklashda xatolik.</p>';
+    }
+}
 
         function renderProducts() {
             let grid = document.getElementById('products-grid');
@@ -211,10 +212,7 @@ if (tg?.initDataUnsafe?.user?.id === ADMIN_ID) {
 
             if (!title || !price || !stock) {
                 alert("Barcha maydonlarni to'ldiring!");
-                return;
-            }
-
-          let res = await fetch('https://stroysentr-market-bot.onrender.com/api/products', {
+   let res = await fetch('https://stroysentr-market-bot.onrender.com/api/products', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -222,7 +220,6 @@ if (tg?.initDataUnsafe?.user?.id === ADMIN_ID) {
         title, price, stock, image_url
     })
 });
-
             let data = await res.json();
             if (data.status === 'success') {
                 alert("Mahsulot qo'shildi!");
