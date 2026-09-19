@@ -3,14 +3,13 @@ import sqlite3
 import logging
 import uuid
 from aiohttp import web
-from aiogram import Bot, Dispatcher, types
-from aiogram.filters import CommandStart
-from aiogram.types import WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram import Bot, Dispatcher, F
+from aiogram.types import Message, WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
 
 # Logging sozlamalari
 logging.basicConfig(level=logging.INFO)
 
-# Environment o'zgaruvchilari (Render dashboard orqali beriladi)
+# Environment o'zgaruvchilari
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8599909804:AAGrZoiDTW-dxkoOgyKCbGNBR841TAcchp4")
 ADMIN_ID = os.getenv("ADMIN_ID", "6986848905")
 GROUP_ID = os.getenv("GROUP_ID", "-1004434264658")
@@ -19,15 +18,15 @@ WEB_APP_URL = os.getenv("WEB_APP_URL", "https://stroysentr-market-bot.onrender.c
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# Uploads va Public papkalarini avtomatik yaratish
+# Papkalarni belgilash
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 PUBLIC_DIR = os.path.join(BASE_DIR, "public")
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(PUBLIC_DIR, exist_ok=True)
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# Database tayyorlash
+# SQLite Ma'lumotlar bazasini yaratish
 def init_db():
     conn = sqlite3.connect("store.db")
     cursor = conn.cursor()
@@ -45,28 +44,31 @@ def init_db():
 
 init_db()
 
-# --- TELEGRAM BOT HANDLERS ---
-@dp.message(CommandStart())
-async def start_handler(message: types.Message):
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🛒 Do'konni ochish", web_app=WebAppInfo(url=WEB_APP_URL))]
-    ])
-    await message.answer(
-        f"Assalomu alaykum, {message.from_user.first_name}!\n"
-        f"STROY SENTR do'koniga xush kelibsiz. Do'konni ochish uchun pastdagi tugmani bosing.",
-        reply_markup=keyboard
+# --- BOT HANDLERS ---
+@dp.message(F.text == "/start")
+async def start_cmd(message: Message):
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🛒 Do'konni ochish",
+                    web_app=WebAppInfo(url=WEB_APP_URL)
+                )
+            ]
+        ]
     )
+    await message.answer("Assalomu alaykum! STROY SENTR do'konimizga xush kelibsiz. Do'konni ochish uchun pastdagi tugmani bosing:", reply_markup=keyboard)
 
-# --- API ENDPOINTS (MINI APP) ---
+# --- API ENDPOINTS ---
 
-# 1. Bosh sahifa (index.html)
+# 1. Bosh sahifani ko'rsatish
 async def handle_index(request):
-    index_path = os.path.join(PUBLIC_DIR, "index.html")
-    if os.path.exists(index_path):
-        return web.FileResponse(index_path)
+    index_file = os.path.join(PUBLIC_DIR, "index.html")
+    if os.path.exists(index_file):
+        return web.FileResponse(index_file)
     return web.Response(text="index.html topilmadi", status=404)
 
-# 2. Mahsulotlar ro'yxatini olish
+# 2. Barcha mahsulotlarni olish
 async def handle_get_products(request):
     try:
         conn = sqlite3.connect("store.db")
@@ -90,7 +92,7 @@ async def handle_get_products(request):
         logging.error(f"Get products error: {e}")
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
-# 3. Galereyadan rasm bilan yangi mahsulot qo'shish (ADMIN)
+# 3. ADMIN UCHUN: Galereyadan rasm yuklab mahsulot qo'shish
 async def handle_add_product(request):
     try:
         reader = await request.multipart()
@@ -137,8 +139,9 @@ async def handle_add_product(request):
             return web.json_response({"status": "error", "message": "Ruxsat berilmagan!"}, status=403)
 
         if not title or price is None:
-            return web.json_response({"status": "error", "message": "Ma'lumotlar to'liq emas"}, status=400)
+            return web.json_response({"status": "error", "message": "Ma'lumotlar to'liq emas!"}, status=400)
 
+        # Bazaga saqlash
         conn = sqlite3.connect("store.db")
         cursor = conn.cursor()
         cursor.execute(
@@ -148,13 +151,13 @@ async def handle_add_product(request):
         conn.commit()
         conn.close()
 
-        return web.json_response({"status": "success", "message": "Mahsulot muvaffaqiyatli qo'shildi"})
+        return web.json_response({"status": "success", "message": "Mahsulot muvaffaqiyatli qo'shildi!"})
 
     except Exception as e:
         logging.error(f"Add product error: {e}")
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
-# 4. Buyurtma yaratish va Telegram Guruhga xabar yuborish
+# 4. Buyurtmani Telegram Guruhga yuborish
 async def handle_create_order(request):
     try:
         data = await request.json()
@@ -168,7 +171,6 @@ async def handle_create_order(request):
         if not items:
             return web.json_response({"status": "error", "message": "Savat bo'sh!"}, status=400)
 
-        # Telegram guruh uchun chek matnini shakllantirish
         text = f"🛍 <b>YANGI BUYURTMA!</b>\n\n"
         text += f"👤 <b>Xaridor:</b> {user_name}\n"
         text += f"📞 <b>Tel:</b> {phone}\n"
@@ -185,11 +187,11 @@ async def handle_create_order(request):
 
         return web.json_response({"status": "success", "message": "Buyurtma qabul qilindi!"})
 
-    except Exception as e:
+    except Exception ase:
         logging.error(f"Order error: {e}")
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
-# --- APPLICATION SETUP ---
+# SERVER SHAKLLANTIRISH
 async def init_app():
     app = web.Application()
 
@@ -211,11 +213,9 @@ async def main():
     
     port = int(os.getenv("PORT", 10000))
     site = web.TCPSite(runner, "0.0.0.0", port)
-    
-    logging.info(f"Server {port}-portda ishga tushmoqda...")
     await site.start()
     
-    # Bot polling
+    # Polling
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
