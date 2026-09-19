@@ -14,24 +14,24 @@ from aiogram.fsm.storage.memory import MemoryStorage
 # Loglarni sozlash
 logging.basicConfig(level=logging.INFO)
 
-# O'zgaruvchilar
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8599909804:AAGrZoiDTW-dxkoOgyKCbGNBR841TAcchp4")
+# O'zgaruvchilar (O'zingizning token va ID'laringizni yozing)
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8599909804:AAGrZoiDTW-dxkoOgyKCBGNBR841TAcchp4")
 ADMIN_ID = int(os.getenv("ADMIN_ID", 6986848905))
 GROUP_ID = os.getenv("GROUP_ID", "-1004434264658") # Yetkazuvchilar va xodimlar guruhi
 
 BOT_ADDRESS = "📍 Manzil: Farg'ona viloyati, Yaypan shahri, Stroy Sentr dokoni."
-CONTACT_CENTER = "📞 Aloqa markazi: +998 978 105 16 56 \n👨‍💻 Menedjer: @DataCrafterss"
+CONTACT_CENTER = "📞 Aloqa markazi: +998 97 105 16 56\n👨‍💻 Menedjer: @DataCrafterss"
 PAYMENT_CARD = "💳 **Karta raqami:** `4097 8300 8361 0556`\n👤 **Karta egasi:** Sadriddin Abduraxmonov"
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
 # Bazalar
-PRODUCTS_DB = []      # Qo'shilgan mahsulotlar
+PRODUCTS_DB = []      # Qo'shilgan mahsulotlar bazasi
 ORDERS_DB = {}        # Tasdiqlangan buyurtmalar (order_id: data)
 ORDER_COUNTER = 100   # Chek raqami uchun boshlang'ich raqam
 
-# FSM holatlari
+# FSM holatlari (Admin mahsulot qo'shishi uchun)
 class AddProduct(StatesGroup):
     title = State()
     price = State()
@@ -39,8 +39,8 @@ class AddProduct(StatesGroup):
     description = State()
     photo = State()
 
+# Xaridor buyurtma berish jarayoni uchun holatlar
 class CheckoutState(StatesGroup):
-    waiting_for_quantity = State()
     waiting_for_name = State()
     waiting_for_phone = State()
     waiting_for_region = State()
@@ -84,11 +84,12 @@ async def show_contacts(message: Message):
 # --- ADMIN PANEL ---
 @dp.message(Command("admin"))
 @dp.message(F.text == "⚙️ Admin panel")
-async def admin_cmd(message: Message):
+async def admin_cmd(message: Message, state: FSMContext):
     if message.from_user.id != ADMIN_ID:
         await message.answer("❌ Sizda bu bo'limga kirish huquqi yo'q!")
         return
 
+    await state.clear()
     admin_markup = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="➕ Mahsulot qo'shish"), KeyboardButton(text="🗑 Mahsulotlarni tozalash")],
@@ -101,13 +102,13 @@ async def admin_cmd(message: Message):
 @dp.message(F.text == "➕ Mahsulot qo'shish")
 async def start_add_product(message: Message, state: FSMContext):
     if message.from_user.id != ADMIN_ID: return
-    await message.answer("📝 Yangi mahsulot nomini kiriting:")
+    await message.answer("📝 Yangi mahsulot **nomini** kiriting:")
     await state.set_state(AddProduct.title)
 
 @dp.message(AddProduct.title)
 async def process_title(message: Message, state: FSMContext):
     await state.update_data(title=message.text)
-    await message.answer("💰 Mahsulotning 1 dona narxini kiriting (faqat raqam, masalan: 75000):")
+    await message.answer("💰 Mahsulotning 1 dona **narxini** kiriting (faqat raqam, masalan: 75000):")
     await state.set_state(AddProduct.price)
 
 @dp.message(AddProduct.price)
@@ -115,30 +116,37 @@ async def process_price(message: Message, state: FSMContext):
     try:
         price = float(message.text)
         await state.update_data(price=price)
-        await message.answer("📦 Omborda bu mahsulotdan nechta borligini kiriting (dona):")
+        await message.answer("📦 Omborda bu mahsulotdan nechta borligini **dona** ҳisobida kiriting (faqat raqam):")
         await state.set_state(AddProduct.stock)
     except ValueError:
-        await message.answer("❌ Faqat raqam kiriting:")
+        await message.answer("❌ Xato! Faqat raqam kiriting (masalan: 75000):")
 
 @dp.message(AddProduct.stock)
 async def process_stock(message: Message, state: FSMContext):
     try:
         stock = int(message.text)
         await state.update_data(stock=stock)
-        await message.answer("📄 Mahsulot haqida qisqacha tavsif yozing:")
+        await message.answer("📄 Mahsulot haqida qisqacha **tavsif** (opisaniya) yozing:")
         await state.set_state(AddProduct.description)
     except ValueError:
-        await message.answer("❌ Faqat raqam kiriting:")
+        await message.answer("❌ Xato! Qoldiqni faqat butun sondagi raqamda kiriting:")
 
 @dp.message(AddProduct.description)
 async def process_description(message: Message, state: FSMContext):
     await state.update_data(description=message.text)
-    await message.answer("📸 Mahsulot rasmini yuboring:")
+    await message.answer("📸 Endi mahsulot **rasmini** yuboring (rasm yoki fayl ko'rinishida):")
     await state.set_state(AddProduct.photo)
 
-@dp.message(AddProduct.photo, F.photo)
+@dp.message(AddProduct.photo, F.photo | F.document)
 async def process_photo(message: Message, state: FSMContext):
-    photo_id = message.photo[-1].file_id
+    if message.photo:
+        photo_id = message.photo[-1].file_id
+    elif message.document:
+        photo_id = message.document.file_id
+    else:
+        await message.answer("❌ Iltimos, haqiqiy rasm yuboring!")
+        return
+
     data = await state.get_data()
     
     product = {
@@ -150,9 +158,26 @@ async def process_photo(message: Message, state: FSMContext):
     }
     PRODUCTS_DB.append(product)
     
-    await message.answer_photo(photo=photo_id, caption="✅ Mahsulot muvaffaqiyatli qo'shildi!")
+    await message.answer_photo(
+        photo=photo_id, 
+        caption=f"✅ **Mahsulot muvaffaqiyatli qo'shildi!**\n\n"
+                f"📦 Nomi: {product['title']}\n"
+                f"💰 Narxi: {product['price']} so'm\n"
+                f"🔢 Qoldiq: {product['stock']} dona\n"
+                f"📝 Tavsif: {product['description']}",
+        parse_mode="Markdown"
+    )
     await state.clear()
-    await admin_cmd(message)
+    
+    # Adminga qayta menyu chiqarish
+    admin_markup = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="➕ Mahsulot qo'shish"), KeyboardButton(text="🗑 Mahsulotlarni tozalash")],
+            [KeyboardButton(text="📦 Mahsulotlar ro'yxati"), KeyboardButton(text="🔙 Asosiy menyu")]
+        ],
+        resize_keyboard=True
+    )
+    await message.answer("Admin panelga xush kelibsiz:", reply_markup=admin_markup)
 
 @dp.message(F.text == "📦 Mahsulotlar ro'yxati")
 async def list_products(message: Message):
@@ -163,14 +188,14 @@ async def list_products(message: Message):
     for i, p in enumerate(PRODUCTS_DB):
         await message.answer_photo(
             photo=p['photo'],
-            caption=f"🆔 Indeks: {i}\n📦 Nomi: {p['title']}\n💰 Narxi: {p['price']} so'm\n🔢 Qoldiq: {p['stock']} dona"
+            caption=f"🆔 Indeks: {i}\n📦 Nomi: {p['title']}\n💰 Narxi: {p['price']} so'm\n🔢 Qoldiq: {p['stock']} dona\n📝 Tavsif: {p['description']}"
         )
 
 @dp.message(F.text == "🗑 Mahsulotlarni tozalash")
 async def clear_products(message: Message):
     if message.from_user.id != ADMIN_ID: return
     PRODUCTS_DB.clear()
-    await message.answer("🗑 Tozalandi!")
+    await message.answer("🗑 Barcha mahsulotlar tozalandi!")
 
 @dp.message(F.text == "🔙 Asosiy menyu")
 async def back_to_main(message: Message, state: FSMContext):
@@ -196,7 +221,7 @@ async def show_catalog(message: Message):
         )
 
 @dp.callback_query(F.data.startswith("add_cart_"))
-async def add_to_cart_callback(call: CallbackQuery, state: FSMContext):
+async def add_to_cart_callback(call: CallbackQuery):
     idx = int(call.data.split("_")[2])
     user_id = call.from_user.id
     
@@ -208,7 +233,7 @@ async def add_to_cart_callback(call: CallbackQuery, state: FSMContext):
     else:
         USER_CARTS[user_id][idx] = 1
         
-    await call.answer("✅ Mahsulot savatga qo'shildi!")
+    await call.answer("✅ Mahsulot savatga qo'shildi!", show_alert=False)
 
 @dp.message(F.text == "🛒 Savatcham")
 async def show_cart(message: Message):
@@ -257,7 +282,7 @@ async def get_name(message: Message, state: FSMContext):
 @dp.message(CheckoutState.waiting_for_phone)
 async def get_phone(message: Message, state: FSMContext):
     await state.update_data(phone=message.text)
-    await message.answer("📍 Yetkazish manzilini (viloyat, tuman, ko'cha) kiriting:")
+    await message.answer("📍 Yetkazish manzilini (viloyat, tuman, ko'cha, uy) kiriting:")
     await state.set_state(CheckoutState.waiting_for_region)
 
 @dp.message(CheckoutState.waiting_for_region)
@@ -272,7 +297,7 @@ async def get_region(message: Message, state: FSMContext):
     await message.answer(text, parse_mode="Markdown")
     await state.set_state(CheckoutState.waiting_for_receipt)
 
-@dp.message(CheckoutState.waiting_for_receipt, F.photo)
+@dp.message(CheckoutState.waiting_for_receipt, F.photo | F.document)
 async def get_receipt(message: Message, state: FSMContext):
     global ORDER_COUNTER
     user_id = message.from_user.id
@@ -287,7 +312,12 @@ async def get_receipt(message: Message, state: FSMContext):
     order_id = ORDER_COUNTER
     ORDER_COUNTER += 1
     
-    receipt_photo = message.photo[-1].file_id
+    if message.photo:
+        receipt_photo = message.photo[-1].file_id
+    elif message.document:
+        receipt_photo = message.document.file_id
+    else:
+        receipt_photo = None
     
     items_list = []
     total_price = 0
@@ -328,21 +358,28 @@ async def get_receipt(message: Message, state: FSMContext):
         f"📞 Telefon: {data.get('phone')}\n"
         f"📍 Manzil: {data.get('region')}\n"
         f"💰 Jami summa: {total_price} so'm\n\n"
-        f"👇 *Mahsulotlarni ko'rish uchun quyidagi tugmani bosing:*"
+        f"👇 *Mahsulotlarni ketma-ket ko'rish uchun tugmani bosing:*"
     )
     
     markup = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"📦 Mahsulotlarni ko'rish (Chek #{order_id})", callback_data=f"view_order_{order_id}")]
     ])
     
-    # Guruhga chek rasmi va ma'lumotni tashlaymiz
-    await bot.send_photo(
-        chat_id=GROUP_ID,
-        photo=receipt_photo,
-        caption=group_text,
-        reply_markup=markup,
-        parse_mode="Markdown"
-    )
+    if receipt_photo:
+        await bot.send_photo(
+            chat_id=GROUP_ID,
+            photo=receipt_photo,
+            caption=group_text,
+            reply_markup=markup,
+            parse_mode="Markdown"
+        )
+    else:
+        await bot.send_message(
+            chat_id=GROUP_ID,
+            text=group_text,
+            reply_markup=markup,
+            parse_mode="Markdown"
+        )
     
     await message.answer(f"✅ **Buyurtmangiz qabul qilindi!**\n\nChek raqamingiz: **#{order_id}**. Xodimlarimiz tez orada aloqaga chiqishadi.")
     await state.clear()
