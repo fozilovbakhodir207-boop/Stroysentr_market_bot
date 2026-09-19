@@ -10,7 +10,7 @@ from aiogram.types import Message, WebAppInfo, InlineKeyboardMarkup, InlineKeybo
 logging.basicConfig(level=logging.INFO)
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8599909804:AAGrZoiDTW-dxkoOgyKCbGNBR841TAcchp4")
-ADMIN_ID = os.getenv("ADMIN_ID", "6986848905")
+ADMIN_ID = int(os.getenv("ADMIN_ID", 6986848905))
 GROUP_ID = os.getenv("GROUP_ID", "-1004434264658")
 WEB_APP_URL = os.getenv("WEB_APP_URL", "https://fozilovbakhodir207-boop.github.io/Stroysentr_market_bot/")
 
