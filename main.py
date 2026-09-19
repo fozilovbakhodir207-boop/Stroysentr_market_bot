@@ -127,6 +127,19 @@ async def handle_add_product(request):
     except Exception as e:
         logging.error(f"Add product error: {e}")
         return web.json_response({'status': 'error', 'message': str(e)}, status=500)
+        conn = sqlite3.connect("store.db")
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO products (title, price, stock, image_url) VALUES (?, ?, ?, ?)",
+            (title, price, stock, image_url)
+        )
+        conn.commit()
+        conn.close()
+
+        return web.json_response({'status': 'success'})
+    except Exception as e:
+        logging.error(f"Add product error: {e}")
+        return web.json_response({'status': 'error', 'message': str(e)}, status=500)
     stock = int(data.get("stock"))
     image_url = data.get("image_url", "")
 
