@@ -135,16 +135,18 @@ async def process_description(message: Message, state: FSMContext):
 
 @dp.message(AddProduct.photo, F.photo | F.document)
 async def process_photo(message: Message, state: FSMContext):
-    photo_id = message.photo[-1].file_id if message.photo else message.document.file_id
-    data = await state.get_data()
+   file = await message.bot.get_file(photo_id)
+file_path = file.file_path
+photo_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
     
-    product = {
-        "title": data.get("title"),
-        "price": data.get("price"),
-        "stock": data.get("stock"),
-        "description": data.get("description"),
-        "photo": photo_id
-    }
+   product = {
+    "title": data.get("title"),
+    "price": data.get("price"),
+    "stock": data.get("stock"),
+    "description": data.get("description"),
+    "image_url": photo_url
+}
+    
     PRODUCTS_DB.append(product)
     
     await message.answer_photo(
