@@ -7,10 +7,8 @@ from aiohttp import web
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
 
-# Logging sozlamalari
 logging.basicConfig(level=logging.INFO)
 
-# Environment o'zgaruvchilari
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8599909804:AAGrZoiDTW-dxkoOgyKCbGNBR841TAcchp4")
 ADMIN_ID = os.getenv("ADMIN_ID", "6986848905")
 GROUP_ID = os.getenv("GROUP_ID", "-1004434264658")
@@ -19,16 +17,13 @@ WEB_APP_URL = os.getenv("WEB_APP_URL", "https://stroysentr-market-bot.onrender.c
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# Papkalarga absolyut (aniq va to'liq) yo'l ko'rsatish
 BASE_DIR = Path(__file__).resolve().parent
 PUBLIC_DIR = BASE_DIR / "public"
 UPLOAD_DIR = BASE_DIR / "uploads"
 
-# Papkalarni avtomatik yaratish
 PUBLIC_DIR.mkdir(parents=True, exist_ok=True)
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-# SQLite bazasini ulash
 def init_db():
     db_path = BASE_DIR / "store.db"
     conn = sqlite3.connect(db_path)
@@ -47,7 +42,6 @@ def init_db():
 
 init_db()
 
-# --- BOT HANDLERS ---
 @dp.message(F.text == "/start")
 async def start_cmd(message: Message):
     keyboard = InlineKeyboardMarkup(
@@ -62,16 +56,12 @@ async def start_cmd(message: Message):
     )
     await message.answer("Assalomu alaykum! STROY SENTR do'konimizga xush kelibsiz. Do'konni ochish uchun pastdagi tugmani bosing:", reply_markup=keyboard)
 
-# --- API ENDPOINTS ---
-
-# 1. Bosh sahifa (index.html uzatish)
 async def handle_index(request):
     index_file = PUBLIC_DIR / "index.html"
     if index_file.exists():
         return web.FileResponse(index_file)
-    return web.Response(text=f"index.html topilmadi (Manzil: {index_file})", status=404)
+    return web.Response(text="index.html topilmadi", status=404)
 
-# 2. Mahsulotlarni olish
 async def handle_get_products(request):
     try:
         db_path = BASE_DIR / "store.db"
@@ -97,7 +87,6 @@ async def handle_get_products(request):
         logging.error(f"Get products error: {e}")
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
-# 3. Admin uchun: Galereyadan rasm bilan mahsulot qo'shish
 async def handle_add_product(request):
     try:
         reader = await request.multipart()
@@ -161,7 +150,6 @@ async def handle_add_product(request):
         logging.error(f"Add product error: {e}")
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
-# 4. Buyurtmani guruhga yuborish
 async def handle_create_order(request):
     try:
         data = await request.json()
@@ -194,7 +182,6 @@ async def handle_create_order(request):
         logging.error(f"Order error: {e}")
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
-# SERVERNI SOZLASH VA ISHGA TUSHIRISH
 async def init_app():
     app = web.Application()
 
