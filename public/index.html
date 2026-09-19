@@ -3,309 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>STROY SENTR Market</title>
+    <title>STROY SENTR MARKET</title>
+    <!-- Telegram WebApp kutubxonasi (Shart!) -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        :root {
-            --primary-color: #7000ff;
-            --bg-color: #f4f5f7;
-            --card-bg: #ffffff;
-            --text-color: #000000;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg-color);
-            margin: 0;
-            padding: 12px;
-            padding-bottom: 80px;
-            color: var(--text-color);
-        }
-
-        .header {
-            background: var(--card-bg);
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-
-        .header h2 { margin: 0 0 8px 0; color: var(--primary-color); }
-        .header p { margin: 4px 0; font-size: 13px; color: #555; }
-
-        .admin-panel {
-            display: none;
-            background: var(--card-bg);
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 15px;
-            border: 2px solid var(--primary-color);
-        }
-
-        .form-group { margin-bottom: 10px; }
-        .form-group label { display: block; font-size: 12px; margin-bottom: 4px; font-weight: bold; }
-        .form-group input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
-
-        .btn {
-            width: 100%;
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 14px;
-            cursor: pointer;
-        }
-
-        .products-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .product-card {
-            background: var(--card-bg);
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            display: flex;
-            flex-direction: column;
-        }
-
-        .product-card img {
-            width: 100%;
-            height: 130px;
-            object-fit: cover;
-            background-color: #eee;
-        }
-
-        .product-info {
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1;
-            justify-content: space-between;
-        }
-
-        .product-title { font-size: 13px; font-weight: 500; margin-bottom: 6px; }
-        .product-price { font-size: 14px; font-weight: bold; color: var(--primary-color); margin-bottom: 8px; }
-
-        .add-cart-btn {
-            background-color: #f0f0f0;
-            color: #333;
-            border: none;
-            padding: 8px;
-            border-radius: 6px;
-            font-weight: bold;
-            font-size: 12px;
-            cursor: pointer;
-        }
-
-        .cart-bar {
-            position: fixed;
-            bottom: 10px;
-            left: 12px;
-            right: 12px;
-            background: var(--primary-color);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 12px;
-            display: none;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 4px 12px rgba(112, 0, 255, 0.4);
-            cursor: pointer;
-        }
-
-        #loading { text-align: center; padding: 20px; font-size: 14px; color: #777; }
+        body { font-family: sans-serif; background-color: #f4f4f9; margin: 0; padding: 15px; color: #333; }
+        h2 { text-align: center; color: #2c3e50; }
+        .card { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        input, button { width: 100%; padding: 10px; margin: 5px 0 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        button { background-color: #28a745; color: white; border: none; font-weight: bold; cursor: pointer; }
+        button:hover { background-color: #218838; }
+        .product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .product-card { background: white; border-radius: 8px; padding: 10px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .product-card img { width: 100%; height: 120px; object-fit: cover; border-radius: 5px; }
+        .price { color: #e74c3c; font-weight: bold; margin: 5px 0; }
+        #admin-panel { display: none; background: #eef9ff; border: 1px solid #bce8ff; }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h2>🏗 STROY SENTR</h2>
-        <p>📍 Manzil: Yaypan sh., 1-maktab yonida</p>
-        <p>📞 Tel: +998 (97) 105-16-56 | 💬 Tg: @DataCrafterss</p>
+    <h2>🏗 STROY SENTR MARKET</h2>
+
+    <!-- Admin Forma (Faqat Admin kirganda ko'rinadi) -->
+    <div id="admin-panel" class="card">
+        <h3>➕ Yangi mahsulot qo'shish</h3>
+        <input type="text" id="prod-title" placeholder="Mahsulot nomi">
+        <input type="number" id="prod-price" placeholder="Narxi (so'mda)">
+        <input type="number" id="prod-stock" placeholder="Ombordagi soni">
+        <input type="file" id="prod-image" accept="image/*">
+        <button onclick="addProduct()">Saqlash va Joylash</button>
+        <p id="admin-status" style="font-size:12px; color:blue;"></p>
     </div>
 
-    <!-- Admin Forma (Galereyadan rasm yuklash) -->
-    <div id="adminPanel" class="admin-panel">
-        <h3>➕ Yangi mahsulot qo'shish (Admin)</h3>
-        <form id="addProductForm">
-            <div class="form-group">
-                <label>Mahsulot Nomi:</label>
-                <input type="text" id="title" required placeholder="Sement M500">
-            </div>
-            <div class="form-group">
-                <label>Narxi (so'm):</label>
-                <input type="number" id="price" required placeholder="65000">
-            </div>
-            <div class="form-group">
-                <label>Soni (omborda):</label>
-                <input type="number" id="stock" value="10">
-            </div>
-            <div class="form-group">
-                <label>Rasm (Galereyadan tanlang):</label>
-                <input type="file" id="imageFile" accept="image/*" required>
-            </div>
-            <button type="submit" class="btn" id="submitBtn">Saqlash</button>
-        </form>
+    <!-- Mahsulotlar Katalogi -->
+    <h3>🛒 Mahsulotlar katalogi</h3>
+    <div id="products-list" class="product-grid">
+        <p>Mahsulotlar yuklanmoqda...</p>
     </div>
 
-    <h3>Mahsulotlar katalogi</h3>
-    <div id="loading">Yuklanmoqda...</div>
-    <div id="productsGrid" class="products-grid"></div>
-
-    <!-- Savat paneli -->
-    <div id="cartBar" class="cart-bar" onclick="checkout()">
-        <span>🛒 Savat (<span id="cartCount">0</span>)</span>
-        <span id="cartTotal">0 so'm</span>
-    </div>
-
-    <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-
-        const user = tg.initDataUnsafe?.user || {};
-        const userId = user.id ? user.id.toString() : "";
-
-        let cart = [];
-
-        // Mahsulotlarni olish
-        async function loadProducts() {
-            try {
-                const res = await fetch('/api/products');
-                const data = await res.json();
-                
-                document.getElementById('loading').style.display = 'none';
-                const grid = document.getElementById('productsGrid');
-                grid.innerHTML = '';
-
-                if (data.status === 'success' && data.products.length > 0) {
-                    data.products.forEach(p => {
-                        const imgSrc = p.image_url || 'https://via.placeholder.com/150';
-                        grid.innerHTML += `
-                            <div class="product-card">
-                                <img src="${imgSrc}" alt="${p.title}">
-                                <div class="product-info">
-                                    <div class="product-title">${p.title}</div>
-                                    <div class="product-price">${Number(p.price).toLocaleString()} so'm</div>
-                                    <button class="add-cart-btn" onclick="addToCart('${p.id}', '${p.title}', ${p.price})">+ Savatga</button>
-                                </div>
-                            </div>
-                        `;
-                    });
-                } else {
-                    grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #888;">Hozircha mahsulotlar yo\'q</div>';
-                }
-            } catch (err) {
-                document.getElementById('loading').innerText = 'Xatolik yuz berdi!';
-            }
-        }
-
-        // Admin tekshiruvi (So'rov o'tganda admin shakli ko'rinadi)
-        if (userId) {
-            document.getElementById('adminPanel').style.display = 'block';
-        }
-
-        // Savatga qo'shish
-        function addToCart(id, title, price) {
-            const item = cart.find(i => i.id === id);
-            if (item) {
-                item.quantity += 1;
-            } else {
-                cart.push({ id, title, price, quantity: 1 });
-            }
-            updateCartBar();
-        }
-
-        function updateCartBar() {
-            const count = cart.reduce((sum, item) => sum + item.quantity, 0);
-            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-            document.getElementById('cartCount').innerText = count;
-            document.getElementById('cartTotal').innerText = total.toLocaleString() + " so'm";
-            document.getElementById('cartBar').style.display = count > 0 ? 'flex' : 'none';
-        }
-
-        // Buyurtmani rasmiylashtirish va Guruhga yuborish
-        async function checkout() {
-            const phone = prompt("Telefon raqamingizni kiriting:", "+998");
-            if (!phone) return;
-
-            const address = prompt("Yetkazib berish manzilini kiriting:", "Yaypan sh.");
-
-            const orderData = {
-                user_name: user.first_name ? `${user.first_name} (@${user.username || ''})` : 'Mijoz',
-                phone: phone,
-                address: address || 'Kelishiladi',
-                items: cart,
-                total_price: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-            };
-
-            try {
-                const res = await fetch('/api/orders/create', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(orderData)
-                });
-                const result = await res.json();
-
-                if (result.status === 'success') {
-                    alert('Buyurtmangiz guruhga yuborildi! Tez orada bog\'lanamiz.');
-                    cart = [];
-                    updateCartBar();
-                    tg.close();
-                } else {
-                    alert('Xatolik: ' + result.message);
-                }
-            } catch (err) {
-                alert('Server bilan bog\'lanishda xatolik!');
-            }
-        }
-
-        // Formadan mahsulot qo'shish (Galereya rasmi bilan)
-        document.getElementById('addProductForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const submitBtn = document.getElementById('submitBtn');
-            submitBtn.disabled = true;
-            submitBtn.innerText = 'Yuklanmoqda...';
-
-            const formData = new FormData();
-            formData.append('user_id', userId);
-            formData.append('title', document.getElementById('title').value);
-            formData.append('price', document.getElementById('price').value);
-            formData.append('stock', document.getElementById('stock').value);
-            
-            const fileInput = document.getElementById('imageFile');
-            if (fileInput.files.length > 0) {
-                formData.append('image', fileInput.files[0]);
-            }
-
-            try {
-                const res = await fetch('/api/products/add', {
-                    method: 'POST',
-                    body: formData
-                });
-                const result = await res.json();
-
-                if (result.status === 'success') {
-                    alert('Mahsulot muvaffaqiyatli qo\'shildi!');
-                    document.getElementById('addProductForm').reset();
-                    loadProducts();
-                } else {
-                    alert('Xatolik: ' + result.message);
-                }
-            } catch (err) {
-                alert('Server bilan bog\'lanishda xatolik!');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerText = 'Saqlash';
-            }
-        });
-
-        loadProducts();
-    </script>
+    <!-- Script fayli -->
+    <script src="/public/script.js"></script>
 </body>
 </html>
