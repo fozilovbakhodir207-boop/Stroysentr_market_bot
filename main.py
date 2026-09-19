@@ -135,23 +135,23 @@ async def process_description(message: Message, state: FSMContext):
 
 @dp.message(AddProduct.photo, F.photo | F.document)
 async def process_photo(message: Message, state: FSMContext):
-   file = await message.bot.get_file(photo_id)
-   file_path = file.file_path
-   photo_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
+    file = await message.bot.get_file(photo_id)
+    file_path = file.file_path
+    photo_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
     
-product = {
-    "title": data.get("title"),
-    "price": data.get("price"),
-    "stock": data.get("stock"),
-    "description": data.get("description"),
-    "image_url": photo_url
-}
+    product = {
+        "title": data.get("title"),
+        "price": data.get("price"),
+        "stock": data.get("stock"),
+        "description": data.get("description"),
+        "image_url": photo_url
+    }
     
- PRODUCTS_DB.append(product)
+    PRODUCTS_DB.append(product)
     
- await message.answer_photo(
-        photo=photo_id, 
-        caption=f"✅ **Mahsulot muvaffaqiyatli qo'shildi!**\n\n📦 Nomi: {product['title']}\n💰 Narxi: {product['price']} so'm",
+    await message.answer_photo(
+        photo=photo_id,
+        caption=f"✅ **Mahsulot muvaffaqiyatli qo'shildi!**\n\n Nomi: {product['title']}\n Narxi: {product['price']}",
         parse_mode="Markdown"
     )
     await state.clear()
