@@ -2,6 +2,7 @@ import os
 import sqlite3
 import logging
 import uuid
+from pathlib import Path
 from aiohttp import web
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, WebAppInfo, InlineKeyboardMarkup, InlineKeyboardButton
@@ -18,17 +19,19 @@ WEB_APP_URL = os.getenv("WEB_APP_URL", "https://stroysentr-market-bot.onrender.c
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# Papkalarni belgilash
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PUBLIC_DIR = os.path.join(BASE_DIR, "public")
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+# Papkalarga absolyut (aniq va to'liq) yo'l ko'rsatish
+BASE_DIR = Path(__file__).resolve().parent
+PUBLIC_DIR = BASE_DIR / "public"
+UPLOAD_DIR = BASE_DIR / "uploads"
 
-os.makedirs(PUBLIC_DIR, exist_ok=True)
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+# Papkalarni avtomatik yaratish
+PUBLIC_DIR.mkdir(parents=True, exist_ok=True)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-# SQLite Ma'lumotlar bazasini yaratish
+# SQLite bazasini ulash
 def init_db():
-    conn = sqlite3.connect("store.db")
+    db_path = BASE_DIR / "store.db"
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS products (
@@ -61,38 +64,40 @@ async def start_cmd(message: Message):
 
 # --- API ENDPOINTS ---
 
-# 1. Bosh sahifani ko'rsatish
+# 1. Bosh sahifa (index.html uzatish)
 async def handle_index(request):
-    index_file = os.path.join(PUBLIC_DIR, "index.html")
-    if os.path.exists(index_file):
+    index_file = PUBLIC_DIR / "index.html"
+    if index_file.exists():
         return web.FileResponse(index_file)
-    return web.Response(text="index.html topilmadi", status=404)
+    return web.Response(text=f"index.html topilmadi (Manzil: {index_file})", status=404)
 
-# 2. Barcha mahsulotlarni olish
+# 2. Mahsulotlarni olish
 async def handle_get_products(request):
     try:
-        conn = sqlite3.connect("store.db")
+        db_path = BASE_DIR / "store.db"
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute("SELECT id, title, price, stock, image_url FROM products ORDER BY id DESC")
         rows = cursor.fetchall()
         conn.close()
 
-        products = []
-        for r in rows:
-            products.append({
+        products = [
+            {
                 "id": r[0],
                 "title": r[1],
                 "price": r[2],
                 "stock": r[3],
                 "image_url": r[4]
-            })
+            }
+            for r in rows
+        ]
 
         return web.json_response({"status": "success", "products": products})
     except Exception as e:
         logging.error(f"Get products error: {e}")
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
-# 3. ADMIN UCHUN: Galereyadan rasm yuklab mahsulot qo'shish
+# 3. Admin uchun: Galereyadan rasm bilan mahsulot qo'shish
 async def handle_add_product(request):
     try:
         reader = await request.multipart()
@@ -121,9 +126,9 @@ async def handle_add_product(request):
             elif field.name == 'image':
                 filename = field.filename
                 if filename:
-                    ext = os.path.splitext(filename)[1]
+                    ext = Path(filename).suffix
                     unique_filename = f"{uuid.uuid4().hex}{ext}"
-                    filepath = os.path.join(UPLOAD_DIR, unique_filename)
+                    filepath = UPLOAD_DIR / unique_filename
                     
                     with open(filepath, 'wb') as f:
                         while True:
@@ -134,15 +139,14 @@ async def handle_add_product(request):
                     
                     image_url = f"/uploads/{unique_filename}"
 
-        # Admin huquqini tekshirish
         if str(user_id) != str(ADMIN_ID):
             return web.json_response({"status": "error", "message": "Ruxsat berilmagan!"}, status=403)
 
         if not title or price is None:
             return web.json_response({"status": "error", "message": "Ma'lumotlar to'liq emas!"}, status=400)
 
-        # Bazaga saqlash
-        conn = sqlite3.connect("store.db")
+        db_path = BASE_DIR / "store.db"
+        conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         cursor.execute(
             "INSERT INTO products (title, price, stock, image_url) VALUES (?, ?, ?, ?)",
@@ -157,7 +161,7 @@ async def handle_add_product(request):
         logging.error(f"Add product error: {e}")
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
-# 4. Buyurtmani Telegram Guruhga yuborish
+# 4. Buyurtmani guruhga yuborish
 async def handle_create_order(request):
     try:
         data = await request.json()
@@ -182,16 +186,15 @@ async def handle_create_order(request):
 
         text += f"\n💰 <b>Jami summa:</b> {int(total_price):,} so'm"
 
-        # Guruhga yuborish
         await bot.send_message(chat_id=GROUP_ID, text=text, parse_mode="HTML")
 
         return web.json_response({"status": "success", "message": "Buyurtma qabul qilindi!"})
 
-    except Exception ase:
+    except Exception as e:
         logging.error(f"Order error: {e}")
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
-# SERVER SHAKLLANTIRISH
+# SERVERNI SOZLASH VA ISHGA TUSHIRISH
 async def init_app():
     app = web.Application()
 
@@ -200,8 +203,8 @@ async def init_app():
     app.router.add_post('/api/products/add', handle_add_product)
     app.router.add_post('/api/orders/create', handle_create_order)
 
-    app.router.add_static('/uploads/', path=UPLOAD_DIR, name='uploads')
-    app.router.add_static('/public/', path=PUBLIC_DIR, name='public')
+    app.router.add_static('/public/', path=str(PUBLIC_DIR), name='public')
+    app.router.add_static('/uploads/', path=str(UPLOAD_DIR), name='uploads')
 
     return app
 
@@ -215,7 +218,6 @@ async def main():
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
     
-    # Polling
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
