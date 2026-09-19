@@ -1,5 +1,6 @@
 import os
 import logging
+import asyncio
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 from aiogram.filters import Command
@@ -7,6 +8,7 @@ from aiohttp import web
 
 logging.basicConfig(level=logging.INFO)
 
+# O'zgaruvchilar
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8599909804:AAGrZoiDTW-dxkoOgyKCBGNBR841TAcchp4")
 ADMIN_ID = int(os.getenv("ADMIN_ID", 6986848905))
 GROUP_ID = os.getenv("GROUP_ID", "-1004434264658")
@@ -24,7 +26,6 @@ async def start_cmd(message: Message):
         [KeyboardButton(text="🛍️ Do'konni ochish", web_app=WebAppInfo(url=WEB_APP_URL))]
     ]
     
-    # Faqat admin uchun Admin panel tugmasi
     if user_id == ADMIN_ID:
         buttons.append([KeyboardButton(text="⚙️ Admin panel")])
 
@@ -48,12 +49,10 @@ async def admin_cmd(message: Message):
 
     await message.answer(
         "🛠 **STROY SENTR Admin paneli**\n\n"
-        "Xush kelibsiz! Buyruqlar:\n"
-        "➕ /add - Yangi mahsulot qo'shish\n"
-        "🗑 /delete - Mahsulotni o'chirish"
+        "Xush kelibsiz, Admin!"
     )
 
-# 3. Mini App'dan kelgan zayavkalarni guruhga yuborish (API)
+# 3. Mini App'dan kelgan buyurtmalarni guruhga yuborish (API)
 async def handle_order(request):
     try:
         data = await request.json()
@@ -73,12 +72,26 @@ async def handle_order(request):
             
         order_text += f"\n💰 **Jami summa:** {total_price} so'm"
 
-        # Guruhga xabar yuborish
         await bot.send_message(chat_id=GROUP_ID, text=order_text)
         return web.json_response({"status": "success"})
     except Exception as e:
         logging.error(f"Order error: {e}")
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
-app = web.Application()
-app.router.add_post("/api/order", handle_order)
+# Web server va Botni birga ishga tushirish
+async def main():
+    app = web.Application()
+    app.router.add_post("/api/order", handle_order)
+    
+    runner = web.AppRunner(app)
+    await runner.setup()
+    
+    port = int(os.getenv("PORT", 8080))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    
+    logging.info("Bot va Web server ishga tushdi!")
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
