@@ -6,12 +6,13 @@ from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, WebAppIn
 from aiogram.filters import Command
 from aiohttp import web
 
+# Loglarni sozlash
 logging.basicConfig(level=logging.INFO)
 
 # O'zgaruvchilar
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8599909804:AAGrZoiDTW-dxkoOgyKCBGNBR841TAcchp4")
 ADMIN_ID = int(os.getenv("ADMIN_ID", 6986848905))
-GROUP_ID = os.getenv("GROUP_ID", "-1004434264658")
+GROUP_ID = os.getenv("GROUP_ID", -1004434264658)
 WEB_APP_URL = os.getenv("WEB_APP_URL", "https://fozilovbakhodir207-boop.github.io/Stroysentr_market_bot/")
 
 bot = Bot(token=BOT_TOKEN)
@@ -47,12 +48,9 @@ async def admin_cmd(message: Message):
         await message.answer("❌ Sizda admin huquqlari yo'q!")
         return
 
-    await message.answer(
-        "🛠 **STROY SENTR Admin paneli**\n\n"
-        "Xush kelibsiz, Admin!"
-    )
+    await message.answer("🛠 **STROY SENTR Admin paneli**\n\nXush kelibsiz!")
 
-# 3. Mini App'dan kelgan buyurtmalarni guruhga yuborish (API)
+# 3. Mini App buyurtmalarini guruhga yuborish (API Endpoint)
 async def handle_order(request):
     try:
         data = await request.json()
@@ -78,7 +76,7 @@ async def handle_order(request):
         logging.error(f"Order error: {e}")
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
-# Web server va Botni birga ishga tushirish
+# Web server va Botni parallel ishga tushirish
 async def main():
     app = web.Application()
     app.router.add_post("/api/order", handle_order)
@@ -86,11 +84,14 @@ async def main():
     runner = web.AppRunner(app)
     await runner.setup()
     
-    port = int(os.getenv("PORT", 8080))
+    # Render o'zi ajratadigan PORT ni olamiz
+    port = int(os.getenv("PORT", 10000))
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
     
-    logging.info("Bot va Web server ishga tushdi!")
+    logging.info(f"Web server {port}-portda muvaffaqiyatli ishga tushdi!")
+    
+    # Bot pollingni boshlash
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
