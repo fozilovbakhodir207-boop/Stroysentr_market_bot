@@ -139,7 +139,7 @@ async def process_photo(message: Message, state: FSMContext):
 file_path = file.file_path
 photo_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
     
-   product = {
+product = {
     "title": data.get("title"),
     "price": data.get("price"),
     "stock": data.get("stock"),
