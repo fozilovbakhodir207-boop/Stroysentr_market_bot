@@ -199,6 +199,9 @@ async def web_server():
     await site.start()
 
 async def main():
+    # Veb-hooklarni tozalash (xatolik bermasligi uchun)
+    await bot.delete_webhook(drop_pending_updates=True)
+    
     # Veb-server va botni birgalikda ishga tushirish
     await web_server()
     await dp.start_polling(bot)
