@@ -27,12 +27,16 @@
         .cart-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #2f855a; color: white; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 15px; box-shadow: 0 -4px 12px rgba(0,0,0,0.1); display: none; cursor: pointer; z-index: 100; }
         
         .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; justify-content: center; align-items: flex-end; }
-        .modal-content { background: white; width: 100%; max-width: 500px; border-radius: 20px 20px 0 0; padding: 20px; }
+        .modal-content { background: white; width: 100%; max-width: 500px; border-radius: 20px 20px 0 0; padding: 20px; max-height: 90vh; overflow-y: auto; }
         .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 14px; color: #1a202c; }
         .form-group { margin-bottom: 12px; }
         .form-group label { display: block; font-size: 12px; font-weight: 600; color: #4a5568; margin-bottom: 4px; }
         .form-control { width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 14px; }
         .submit-btn { background: #2f855a; color: white; border: none; width: 100%; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 15px; margin-top: 10px; cursor: pointer; }
+        
+        .payment-box { background: #fffaf0; border: 1px solid #feebc8; padding: 12px; border-radius: 8px; margin-bottom: 14px; }
+        .payment-box p { font-size: 13px; color: #744210; margin-bottom: 4px; }
+        .card-number { font-size: 16px; font-weight: 700; color: #c05621; letter-spacing: 1px; }
     </style>
 </head>
 <body>
@@ -47,9 +51,18 @@
         <div>Jami: <span id="cart-total">0</span> so'm</div>
     </div>
 
+    <!-- Checkout Modal -->
     <div id="checkout-modal" class="modal">
         <div class="modal-content">
-            <div class="modal-title">Buyurtmani rasmiylashtirish</div>
+            <div class="modal-title">To'lov va Buyurtma</div>
+            
+            <div class="payment-box">
+                <p>💳 **To'lov uchun karta:**</p>
+                <div class="card-number">9860 3501 2345 6789</div>
+                <p style="margin-top: 6px;">Jami summa: <b id="modal-total-price">0</b> so'm</p>
+                <p style="font-size: 11px; color: #975a16; margin-top: 4px;">Pulni o'tkazib, pastga to'lov cheki (skrinshot) rasmini yuklang.</p>
+            </div>
+
             <div class="form-group">
                 <label>Ism va Familiyangiz</label>
                 <input type="text" id="client-name" class="form-control" placeholder="Masalan: Anvar Toshmatov">
@@ -62,7 +75,11 @@
                 <label>Yetkazib berish manzili</label>
                 <input type="text" id="client-address" class="form-control" placeholder="Yaypan sh., ... ko'chasi">
             </div>
-            <button class="submit-btn" onclick="submitOrder()">Buyurtmani tasdiqlash</button>
+            <div class="form-group">
+                <label>📎 To'lov cheki rasmi (Majburiy)</label>
+                <input type="file" id="receipt-file" class="form-control" accept="image/*">
+            </div>
+            <button class="submit-btn" onclick="submitOrder()">Buyurtmani yuborish</button>
         </div>
     </div>
 
@@ -132,6 +149,7 @@
                 cartBar.style.display = 'flex';
                 document.getElementById('cart-count').innerText = totalCount;
                 document.getElementById('cart-total').innerText = totalPrice.toLocaleString();
+                document.getElementById('modal-total-price').innerText = totalPrice.toLocaleString();
             } else {
                 cartBar.style.display = 'none';
             }
@@ -145,29 +163,33 @@
             const name = document.getElementById('client-name').value.trim();
             const phone = document.getElementById('client-phone').value.trim();
             const address = document.getElementById('client-address').value.trim();
+            const receiptInput = document.getElementById('receipt-file');
 
             if (!name || !phone || !address) {
-                alert("Iltimos, barcha maydonlarni to'ldiring!");
+                alert("Iltimos, shaxsiy ma'lumotlarni to'ldiring!");
+                return;
+            }
+            if (receiptInput.files.length === 0) {
+                alert("❌ Diqqat: To'lov cheki rasmini yuklash majburiy! Chek tashlanmasa zakaz qabul qilinmaydi.");
                 return;
             }
 
-            const orderData = {
-                name: name,
-                phone: phone,
-                address: address,
-                items: cart,
-                user_id: tg.initDataUnsafe?.user?.id || 0
-            };
+            let formData = new FormData();
+            formData.append("name", name);
+            formData.append("phone", phone);
+            formData.append("address", address);
+            formData.append("items", JSON.stringify(cart));
+            formData.append("receipt", receiptInput.files[0]);
+            formData.append("user_id", tg.initDataUnsafe?.user?.id || 0);
 
             fetch('/api/order', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(orderData)
+                body: formData
             })
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    alert(`✅ Buyurtmangiz qabul qilindi! Chek raqami: #${data.order_id}`);
+                    alert(`✅ Buyurtmangiz va to'lov cheki qabul qilindi! Chek raqami: #${data.order_id}`);
                     tg.close();
                 } else {
                     alert("Xatolik yuz berdi: " + (data.error || 'Nomaʼlum xato'));
