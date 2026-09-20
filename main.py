@@ -278,7 +278,6 @@ async def handle_api_order(request):
             chat_id=GROUP_ID, 
             photo=receipt_photo, 
             caption=order_details_text, 
-            parse_mode="Markdown", 
             reply_markup=markup
         )
             
