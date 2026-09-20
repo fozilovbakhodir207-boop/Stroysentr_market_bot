@@ -58,7 +58,7 @@
             
             <div class="payment-box">
                 <p>💳 **To'lov uchun karta:**</p>
-                <div class="card-number">9860 3501 2345 6789</div>
+                <div class="card-number" id="shop-card-number">Yuklanmoqda...</div>
                 <p style="margin-top: 6px;">Jami summa: <b id="modal-total-price">0</b> so'm</p>
                 <p style="font-size: 11px; color: #975a16; margin-top: 4px;">Pulni o'tkazib, pastga to'lov cheki (skrinshot) rasmini yuklang.</p>
             </div>
@@ -90,10 +90,12 @@
         let products = [];
         let cart = {};
 
-        fetch('/api/products')
+        // Mahsulotlar va do'kon ma'lumotlarini olish
+        fetch('/api/data')
             .then(res => res.json())
             .then(data => {
-                products = data;
+                products = data.products;
+                document.getElementById('shop-card-number').innerText = data.card_number;
                 renderProducts();
             });
 
