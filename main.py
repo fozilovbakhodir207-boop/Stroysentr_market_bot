@@ -235,8 +235,8 @@ async def complete_order_callback(callback: CallbackQuery):
         return
 
     order_id = callback.data.split("_")[2]
-    new_text = callback.message.caption + f"\n\n✅ **STATUS: Yig'ildi va yuborildi!** (Mas'ul: @{callback.from_user.username or callback.from_user.first_name})"
-    await callback.message.edit_caption(caption=new_text, parse_mode="Markdown", reply_markup=None)
+    new_text = callback.message.caption + f"\n\n✅ STATUS: Yig'ildi va yuborildi! (Mas'ul: @{callback.from_user.username or callback.from_user.first_name})"
+    await callback.message.edit_caption(caption=new_text, reply_markup=None)
     await callback.answer("Buyurtma bajarildi deb belgilandi!")
 
 # --- WEB SERVER & API ---
@@ -252,7 +252,6 @@ async def handle_api_data(request):
         "card_number": SHOP_SETTINGS["card_number"]
     })
 
-# Chek raqami ustiga bosganda ochiladigan buyurtma tafsilotlari sahifasi
 async def handle_order_view(request):
     try:
         order_id = int(request.match_info.get('id', 0))
@@ -322,7 +321,6 @@ async def handle_order_view(request):
     """
     return web.Response(text=html_content, content_type="text/html")
 
-# Chek rasmini brauzerga chiqarib berish uchun API
 async def handle_receipt_image(request):
     try:
         order_id = int(request.match_info.get('id', 0))
@@ -365,8 +363,9 @@ async def handle_api_order(request):
         items = json.loads(items_raw)
         
         total_sum = 0
-        order_details_text = f"🚨 **CHEK RAQAMI #{order_id} (TO'LOV QILINGAN)**\n\n"
-        order_details_text += f"👤 Mijoz: {name}\n📞 Telefon: {phone}\n📍 Manzil: {address}\n\n🛍 **Mahsulotlar:**\n"
+        # Markdown belgilar olib tashlandi, oddiy matn qilindi (xatolik chiqmasligi uchun)
+        order_details_text = f"🚨 CHEK RAQAMI #{order_id} (TO'LOV QILINGAN)\n\n"
+        order_details_text += f"👤 Mijoz: {name}\n📞 Telefon: {phone}\n📍 Manzil: {address}\n\n🛍 Mahsulotlar:\n"
         
         for key, item in items.items():
             idx = int(item.get("originalIndex", 0))
@@ -378,9 +377,8 @@ async def handle_api_order(request):
                 total_sum += subtotal
                 order_details_text += f"▪️ {PRODUCTS_DB[idx]['title']} - {qty} dona * {PRODUCTS_DB[idx]['price']:,.0f} so'm = {subtotal:,.0f} so'm\n"
 
-        order_details_text += f"\n💰 **Jami to'langan summa:** {total_sum:,.0f} so'm"
+        order_details_text += f"\n💰 Jami to'langan summa: {total_sum:,.0f} so'm"
         
-        # Buyurtmani xotiraga (ORDERS_DB) saqlaymiz, shunda web orqali ochib ko'rsa bo'ladi
         ORDERS_DB[order_id] = {
             "name": name,
             "phone": phone,
@@ -390,7 +388,6 @@ async def handle_api_order(request):
             "receipt_bytes": receipt_bytes
         }
 
-        # Guruhga yuboriladigan xabarga Web App tugmasi qo'shamiz (Chek raqami ustiga bosgandek ishlaydi)
         order_page_url = f"{RENDER_URL}/order/{order_id}"
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🔍 Chek va mahsulotlarni ko'rish", web_app=WebAppInfo(url=order_page_url))],
@@ -402,8 +399,8 @@ async def handle_api_order(request):
             chat_id=GROUP_ID, 
             photo=receipt_photo, 
             caption=order_details_text, 
-            reply_markup=markup,
-            parse_mode="Markdown"
+            reply_markup=markup
+            # parse_mode olib tashlandi (xatolikning oldini olish uchun)
         )
             
         return web.json_response({"success": True, "order_id": order_id})
