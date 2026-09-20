@@ -27,7 +27,7 @@ dp = Dispatcher(storage=MemoryStorage())
 
 # Ma'lumotlar bazasi va do'kon sozlamalari
 PRODUCTS_DB = []
-ORDERS_DB = {}  # Buyurtmalarni vaqtincha saqlash uchun baza (cheklarni ochish uchun)
+ORDERS_DB = {}  
 ORDER_COUNTER = 100
 SHOP_SETTINGS = {
     "card_number": "4097 8300 8361 0556"
@@ -363,7 +363,6 @@ async def handle_api_order(request):
         items = json.loads(items_raw)
         
         total_sum = 0
-        # Markdown belgilar olib tashlandi, oddiy matn qilindi (xatolik chiqmasligi uchun)
         order_details_text = f"🚨 CHEK RAQAMI #{order_id} (TO'LOV QILINGAN)\n\n"
         order_details_text += f"👤 Mijoz: {name}\n📞 Telefon: {phone}\n📍 Manzil: {address}\n\n🛍 Mahsulotlar:\n"
         
@@ -400,7 +399,6 @@ async def handle_api_order(request):
             photo=receipt_photo, 
             caption=order_details_text, 
             reply_markup=markup
-            # parse_mode olib tashlandi (xatolikning oldini olish uchun)
         )
             
         return web.json_response({"success": True, "order_id": order_id})
