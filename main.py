@@ -14,6 +14,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types.input_file import BufferedInputFile
 
+# Logging sozlamalari
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8599909804:AAFOEBP7SX-ynQllqrqjVQ-tDIh6AsWXNDA")
@@ -26,11 +27,13 @@ dp = Dispatcher(storage=MemoryStorage())
 
 # Ma'lumotlar bazasi va do'kon sozlamalari
 PRODUCTS_DB = []
+ORDERS_DB = {}  # Buyurtmalarni vaqtincha saqlash uchun baza (cheklarni ochish uchun)
 ORDER_COUNTER = 100
 SHOP_SETTINGS = {
     "card_number": "4097 8300 8361 0556"
 }
 
+# FSM Holatlari
 class AddProductStates(StatesGroup):
     title = State()
     price = State()
@@ -58,11 +61,11 @@ async def start_cmd(message: Message, state: FSMContext):
         buttons.append([KeyboardButton(text="⚙️ Admin panel")])
 
     markup = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
-    await message.answer("Assalomu alaykum! **STROY SENTR** qurilish mollari dokoniga xush kelibsiz 🏗", reply_markup=markup, parse_mode="Markdown")
+    await message.answer("Assalomu alaykum! **STROY SENTR** qurilish mollari do'koniga xush kelibsiz 🏗", reply_markup=markup, parse_mode="Markdown")
 
 @dp.message(F.text == "📍 Do'kon manzili")
 async def show_address(message: Message):
-    await message.answer("📍 Manzil: Farg'ona viloyati, Yaypan shahri, Stroy Sentr dokoni.")
+    await message.answer("📍 Manzil: Farg'ona viloyati, Yaypan shahri, Stroy Sentr do'koni.")
 
 @dp.message(F.text == "📞 Aloqa markazi")
 async def show_contacts(message: Message):
@@ -72,7 +75,8 @@ async def show_contacts(message: Message):
 @dp.message(Command("admin"))
 @dp.message(F.text == "⚙️ Admin panel")
 async def admin_cmd(message: Message, state: FSMContext):
-    if message.from_user.id != ADMIN_ID: return
+    if message.from_user.id != ADMIN_ID:
+        return
     await state.clear()
     admin_markup = ReplyKeyboardMarkup(
         keyboard=[
@@ -86,12 +90,15 @@ async def admin_cmd(message: Message, state: FSMContext):
 
 @dp.message(F.text == "💳 Karta raqamini o'zgartirish")
 async def edit_card_start(message: Message, state: FSMContext):
-    if message.from_user.id != ADMIN_ID: return
+    if message.from_user.id != ADMIN_ID:
+        return
     await message.answer(f"Joriy karta raqami: `{SHOP_SETTINGS['card_number']}`\n\nYangi karta raqami va egasining F.I.O. ni kiriting:", parse_mode="Markdown")
     await state.set_state(EditCardStates.new_card)
 
 @dp.message(EditCardStates.new_card)
 async def edit_card_finish(message: Message, state: FSMContext):
+    if message.from_user.id != ADMIN_ID:
+        return
     new_card = message.text.strip()
     SHOP_SETTINGS["card_number"] = new_card
     await message.answer(f"✅ Karta raqami muvaffaqiyatli yangilandi:\n`{new_card}`", parse_mode="Markdown")
@@ -99,18 +106,23 @@ async def edit_card_finish(message: Message, state: FSMContext):
 
 @dp.message(F.text == "➕ Mahsulot qo'shish")
 async def start_add_product(message: Message, state: FSMContext):
-    if message.from_user.id != ADMIN_ID: return
+    if message.from_user.id != ADMIN_ID:
+        return
     await message.answer("📝 Mahsulot nomini kiriting:")
     await state.set_state(AddProductStates.title)
 
 @dp.message(AddProductStates.title)
 async def process_title(message: Message, state: FSMContext):
+    if message.from_user.id != ADMIN_ID:
+        return
     await state.update_data(title=message.text)
     await message.answer("💰 Narxini kiriting (so'mda):")
     await state.set_state(AddProductStates.price)
 
 @dp.message(AddProductStates.price)
 async def process_price(message: Message, state: FSMContext):
+    if message.from_user.id != ADMIN_ID:
+        return
     try:
         price = float(message.text)
         await state.update_data(price=price)
@@ -121,6 +133,8 @@ async def process_price(message: Message, state: FSMContext):
 
 @dp.message(AddProductStates.stock)
 async def process_stock(message: Message, state: FSMContext):
+    if message.from_user.id != ADMIN_ID:
+        return
     try:
         stock = int(message.text)
         await state.update_data(stock=stock)
@@ -131,12 +145,16 @@ async def process_stock(message: Message, state: FSMContext):
 
 @dp.message(AddProductStates.description)
 async def process_description(message: Message, state: FSMContext):
+    if message.from_user.id != ADMIN_ID:
+        return
     await state.update_data(description=message.text)
     await message.answer("📸 Mahsulot rasmini yuboring:")
     await state.set_state(AddProductStates.photo)
 
 @dp.message(AddProductStates.photo, F.photo)
 async def process_photo(message: Message, state: FSMContext):
+    if message.from_user.id != ADMIN_ID:
+        return
     photo_file_id = message.photo[-1].file_id
     file = await bot.get_file(photo_file_id)
     photo_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
@@ -156,7 +174,8 @@ async def process_photo(message: Message, state: FSMContext):
 
 @dp.message(F.text == "📦 Mahsulotlar ro'yxati")
 async def list_products(message: Message):
-    if message.from_user.id != ADMIN_ID: return
+    if message.from_user.id != ADMIN_ID:
+        return
     if not PRODUCTS_DB:
         await message.answer("📭 Hozircha mahsulotlar yo'q.")
         return
@@ -165,7 +184,8 @@ async def list_products(message: Message):
 
 @dp.message(F.text == "🔄 Qoldiqni o'zgartirish")
 async def edit_stock_start(message: Message, state: FSMContext):
-    if message.from_user.id != ADMIN_ID: return
+    if message.from_user.id != ADMIN_ID:
+        return
     if not PRODUCTS_DB:
         await message.answer("📭 Mahsulotlar mavjud emas.")
         return
@@ -177,9 +197,12 @@ async def edit_stock_start(message: Message, state: FSMContext):
 
 @dp.message(EditStockStates.select_product)
 async def edit_stock_select(message: Message, state: FSMContext):
+    if message.from_user.id != ADMIN_ID:
+        return
     try:
         idx = int(message.text)
-        if idx < 0 or idx >= len(PRODUCTS_DB): raise ValueError
+        if idx < 0 or idx >= len(PRODUCTS_DB):
+            raise ValueError
         await state.update_data(product_idx=idx)
         await message.answer(f"📦 '{PRODUCTS_DB[idx]['title']}' uchun yangi qoldiq miqdorini kiriting:")
         await state.set_state(EditStockStates.new_stock)
@@ -188,6 +211,8 @@ async def edit_stock_select(message: Message, state: FSMContext):
 
 @dp.message(EditStockStates.new_stock)
 async def edit_stock_finish(message: Message, state: FSMContext):
+    if message.from_user.id != ADMIN_ID:
+        return
     try:
         new_stock = int(message.text)
         data = await state.get_data()
@@ -205,6 +230,10 @@ async def back_to_main(message: Message, state: FSMContext):
 
 @dp.callback_query(F.data.startswith("complete_order_"))
 async def complete_order_callback(callback: CallbackQuery):
+    if callback.from_user.id != ADMIN_ID:
+        await callback.answer("❌ Bu amalni faqat admin bajarishi mumkin!", show_alert=True)
+        return
+
     order_id = callback.data.split("_")[2]
     new_text = callback.message.caption + f"\n\n✅ **STATUS: Yig'ildi va yuborildi!** (Mas'ul: @{callback.from_user.username or callback.from_user.first_name})"
     await callback.message.edit_caption(caption=new_text, parse_mode="Markdown", reply_markup=None)
@@ -222,6 +251,88 @@ async def handle_api_data(request):
         "products": PRODUCTS_DB,
         "card_number": SHOP_SETTINGS["card_number"]
     })
+
+# Chek raqami ustiga bosganda ochiladigan buyurtma tafsilotlari sahifasi
+async def handle_order_view(request):
+    try:
+        order_id = int(request.match_info.get('id', 0))
+    except ValueError:
+        return web.Response(text="<h1>Noto'g'ri buyurtma ID raqami</h1>", content_type="text/html", status=400)
+    
+    order = ORDERS_DB.get(order_id)
+    if not order:
+        return web.Response(text="<h1>Buyurtma topilmadi yoki eskirgan.</h1>", content_type="text/html", status=404)
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="uz">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Chek #{order_id}</title>
+        <style>
+            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f4f6f8; padding: 16px; color: #2d3748; margin: 0; }}
+            .card {{ background: white; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }}
+            h2 {{ font-size: 17px; margin-top: 0; margin-bottom: 12px; color: #1a202c; border-bottom: 2px solid #edf2f7; padding-bottom: 6px; }}
+            p {{ font-size: 14px; margin: 6px 0; }}
+            .item-row {{ display: flex; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #edf2f7; padding-bottom: 8px; }}
+            .item-img {{ width: 55px; height: 55px; object-fit: cover; border-radius: 8px; margin-right: 12px; background: #eee; border: 1px solid #e2e8f0; }}
+            .receipt-img {{ width: 100%; max-height: 400px; object-fit: contain; border-radius: 8px; border: 1px solid #cbd5e0; margin-top: 8px; background: #fff; }}
+            .total {{ color: #2f855a; font-weight: bold; font-size: 16px; }}
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h2>📦 Chek raqami #{order_id}</h2>
+            <p><b>Mijoz:</b> {order['name']}</p>
+            <p><b>Telefon:</b> <a href="tel:{order['phone']}">{order['phone']}</a></p>
+            <p><b>Manzil:</b> {order['address']}</p>
+            <p style="margin-top: 10px;"><b>Jami summa:</b> <span class="total">{order['total_sum']:,.0f} so'm</span></p>
+        </div>
+
+        <div class="card">
+            <h2>🛍 Tanlangan mahsulotlar:</h2>
+    """
+    
+    for key, item in order['items'].items():
+        idx = int(item.get("originalIndex", 0))
+        qty = int(item.get("quantity", 1))
+        if idx < len(PRODUCTS_DB):
+            p = PRODUCTS_DB[idx]
+            subtotal = p['price'] * qty
+            html_content += f"""
+            <div class="item-row">
+                <img src="{p['image_url']}" class="item-img">
+                <div>
+                    <p><b>{p['title']}</b></p>
+                    <p>{qty} dona × {p['price']:,.0f} so'm = <b>{subtotal:,.0f} so'm</b></p>
+                </div>
+            </div>
+            """
+
+    html_content += f"""
+        </div>
+
+        <div class="card">
+            <h2>💳 Mijoz yuklagan to'lov cheki:</h2>
+            <img src="/api/order/{order_id}/receipt" class="receipt-img">
+        </div>
+    </body>
+    </html>
+    """
+    return web.Response(text=html_content, content_type="text/html")
+
+# Chek rasmini brauzerga chiqarib berish uchun API
+async def handle_receipt_image(request):
+    try:
+        order_id = int(request.match_info.get('id', 0))
+    except ValueError:
+        return web.Response(text="Topilmadi", status=404)
+    
+    order = ORDERS_DB.get(order_id)
+    if not order or not order.get('receipt_bytes'):
+        return web.Response(text="Topilmadi", status=404)
+    return web.Response(body=order['receipt_bytes'], content_type="image/jpeg")
 
 async def handle_api_order(request):
     global ORDER_COUNTER
@@ -269,7 +380,20 @@ async def handle_api_order(request):
 
         order_details_text += f"\n💰 **Jami to'langan summa:** {total_sum:,.0f} so'm"
         
+        # Buyurtmani xotiraga (ORDERS_DB) saqlaymiz, shunda web orqali ochib ko'rsa bo'ladi
+        ORDERS_DB[order_id] = {
+            "name": name,
+            "phone": phone,
+            "address": address,
+            "items": items,
+            "total_sum": total_sum,
+            "receipt_bytes": receipt_bytes
+        }
+
+        # Guruhga yuboriladigan xabarga Web App tugmasi qo'shamiz (Chek raqami ustiga bosgandek ishlaydi)
+        order_page_url = f"{RENDER_URL}/order/{order_id}"
         markup = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔍 Chek va mahsulotlarni ko'rish", web_app=WebAppInfo(url=order_page_url))],
             [InlineKeyboardButton(text="✅ Yig'ib yuborildi", callback_data=f"complete_order_{order_id}")]
         ])
         
@@ -278,7 +402,8 @@ async def handle_api_order(request):
             chat_id=GROUP_ID, 
             photo=receipt_photo, 
             caption=order_details_text, 
-            reply_markup=markup
+            reply_markup=markup,
+            parse_mode="Markdown"
         )
             
         return web.json_response({"success": True, "order_id": order_id})
@@ -290,7 +415,8 @@ async def web_server():
     app = web.Application()
     app.router.add_get("/", handle_index)
     app.router.add_get("/api/data", handle_api_data)
-    app.router.add_router_add_post = app.router.add_post
+    app.router.add_get("/order/{id}", handle_order_view)
+    app.router.add_get("/api/order/{id}/receipt", handle_receipt_image)
     app.router.add_post("/api/order", handle_api_order)
     
     runner = web.AppRunner(app)
