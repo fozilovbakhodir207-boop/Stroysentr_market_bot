@@ -20,7 +20,11 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8599909804:AAFOEBP7SX-ynQllqrqjVQ-tDIh6AsWXNDA")
 ADMIN_ID = int(os.getenv("ADMIN_ID", 6986848905))
 GROUP_ID = os.getenv("GROUP_ID", "-1004434264658")
-RENDER_URL = os.getenv("RENDER_URL", "https://stroysentr-market-bot.onrender.com")
+
+# RENDER_URL to'g'ri formatda bo'lishini ta'minlaymiz (https:// majburiy)
+RENDER_URL = os.getenv("RENDER_URL", "https://stroysentr-market-bot.onrender.com").strip()
+if not RENDER_URL.startswith("http"):
+    RENDER_URL = f"https://{RENDER_URL}"
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
