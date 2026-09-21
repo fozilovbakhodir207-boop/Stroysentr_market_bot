@@ -15,13 +15,24 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types.input_file import BufferedInputFile
 
 # Logging sozlamalari
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, 
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8599909804:AAFOEBP7SX-ynQllqrqjVQ-tDIh6AsWXNDA")
-ADMIN_ID = int(os.getenv("ADMIN_ID", 6986848905))
+# Muhim o'zgaruvchilarni olish va tekshirish
+BOT_TOKEN = os.getenv("BOT_TOKEN").strip()
+if not BOT_TOKEN:
+    logging.critical("XATOLIK: BOT_TOKEN muhit o'zgaruvchisi topilmadi!")
+    exit(1)
+
+try:
+    ADMIN_ID = int(os.getenv("ADMIN_ID", "6986848905"))
+except ValueError:
+    ADMIN_ID = 6986848905
+
 GROUP_ID = os.getenv("GROUP_ID", "-1004434264658")
 
-# RENDER_URL to'g'ri formatda bo'lishini ta'minlaymiz
 RENDER_URL = os.getenv("RENDER_URL", "https://stroysentr-market-bot.onrender.com").strip()
 if not RENDER_URL.startswith("http"):
     RENDER_URL = f"https://{RENDER_URL}"
@@ -29,7 +40,7 @@ if not RENDER_URL.startswith("http"):
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
-# Ma'lumotlar bazasi va do'kon sozlamalari
+# Ma'lumotlar bazasi
 PRODUCTS_DB = []
 ORDERS_DB = {}  
 ORDER_COUNTER = 100
@@ -103,9 +114,8 @@ async def edit_card_start(message: Message, state: FSMContext):
 async def edit_card_finish(message: Message, state: FSMContext):
     if message.from_user.id != ADMIN_ID:
         return
-    new_card = message.text.strip()
-    SHOP_SETTINGS["card_number"] = new_card
-    await message.answer(f"✅ Karta raqami muvaffaqiyatli yangilandi:\n`{new_card}`", parse_mode="Markdown")
+    SHOP_SETTINGS["card_number"] = message.text.strip()
+    await message.answer(f"✅ Karta raqami muvaffaqiyatli yangilandi:\n`{SHOP_SETTINGS['card_number']}`", parse_mode="Markdown")
     await state.clear()
 
 @dp.message(F.text == "➕ Mahsulot qo'shish")
@@ -239,16 +249,19 @@ async def complete_order_callback(callback: CallbackQuery):
         return
 
     order_id = callback.data.split("_")[2]
-    new_text = callback.message.caption + f"\n\n✅ STATUS: Yig'ildi va yuborildi! (Mas'ul: @{callback.from_user.username or callback.from_user.first_name})"
+    new_text = callback.message.caption + f"\n\n✅ STATUS: Yig'ildi va yuborildi!"
     await callback.message.edit_caption(caption=new_text, reply_markup=None)
     await callback.answer("Buyurtma bajarildi deb belgilandi!")
 
 # --- WEB SERVER & API ---
 async def handle_index(request):
     try:
-        return web.FileResponse('./index.html')
+        if os.path.exists('./index.html'):
+            return web.FileResponse('./index.html')
+        else:
+            return web.Response(text="<h1>Stroy Sentr Mini App ishlamoqda! index.html topilmadi.</h1>", content_type="text/html")
     except Exception as e:
-        return web.Response(text=f"Xatolik: {e}", content_type="text/plain")
+        return web.Response(text=f"Xatolik: {e}", content_type="text/plain", status=500)
 
 async def handle_api_data(request):
     return web.json_response({
@@ -274,13 +287,13 @@ async def handle_order_view(request):
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Chek #{order_id}</title>
         <style>
-            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f4f6f8; padding: 16px; color: #2d3748; margin: 0; }}
+            body {{ font-family: sans-serif; background: #f4f6f8; padding: 16px; color: #2d3748; margin: 0; }}
             .card {{ background: white; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }}
-            h2 {{ font-size: 17px; margin-top: 0; margin-bottom: 12px; color: #1a202c; border-bottom: 2px solid #edf2f7; padding-bottom: 6px; }}
+            h2 {{ font-size: 17px; margin-top: 0; border-bottom: 2px solid #edf2f7; padding-bottom: 6px; }}
             p {{ font-size: 14px; margin: 6px 0; }}
             .item-row {{ display: flex; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #edf2f7; padding-bottom: 8px; }}
-            .item-img {{ width: 55px; height: 55px; object-fit: cover; border-radius: 8px; margin-right: 12px; background: #eee; border: 1px solid #e2e8f0; }}
-            .receipt-img {{ width: 100%; max-height: 400px; object-fit: contain; border-radius: 8px; border: 1px solid #cbd5e0; margin-top: 8px; background: #fff; }}
+            .item-img {{ width: 55px; height: 55px; object-fit: cover; border-radius: 8px; margin-right: 12px; background: #eee; }}
+            .receipt-img {{ width: 100%; max-height: 400px; object-fit: contain; border-radius: 8px; margin-top: 8px; }}
             .total {{ color: #2f855a; font-weight: bold; font-size: 16px; }}
         </style>
     </head>
@@ -292,30 +305,6 @@ async def handle_order_view(request):
             <p><b>Manzil:</b> {order['address']}</p>
             <p style="margin-top: 10px;"><b>Jami summa:</b> <span class="total">{order['total_sum']:,.0f} so'm</span></p>
         </div>
-
-        <div class="card">
-            <h2>🛍 Tanlangan mahsulotlar:</h2>
-    """
-    
-    for key, item in order['items'].items():
-        idx = int(item.get("originalIndex", 0))
-        qty = int(item.get("quantity", 1))
-        if idx < len(PRODUCTS_DB):
-            p = PRODUCTS_DB[idx]
-            subtotal = p['price'] * qty
-            html_content += f"""
-            <div class="item-row">
-                <img src="{p['image_url']}" class="item-img">
-                <div>
-                    <p><b>{p['title']}</b></p>
-                    <p>{qty} dona × {p['price']:,.0f} so'm = <b>{subtotal:,.0f} so'm</b></p>
-                </div>
-            </div>
-            """
-
-    html_content += f"""
-        </div>
-
         <div class="card">
             <h2>💳 Mijoz yuklagan to'lov cheki:</h2>
             <img src="/api/order/{order_id}/receipt" class="receipt-img">
@@ -340,24 +329,14 @@ async def handle_api_order(request):
     global ORDER_COUNTER
     try:
         reader = await request.multipart()
-        
-        name = ""
-        phone = ""
-        address = ""
-        items_raw = "{}"
-        receipt_bytes = None
+        name, phone, address, items_raw, receipt_bytes = "", "", "", "{}", None
         
         async for field in reader:
-            if field.name == 'name':
-                name = await field.text()
-            elif field.name == 'phone':
-                phone = await field.text()
-            elif field.name == 'address':
-                address = await field.text()
-            elif field.name == 'items':
-                items_raw = await field.text()
-            elif field.name == 'receipt':
-                receipt_bytes = await field.read()
+            if field.name == 'name': name = await field.text()
+            elif field.name == 'phone': phone = await field.text()
+            elif field.name == 'address': address = await field.text()
+            elif field.name == 'items': items_raw = await field.text()
+            elif field.name == 'receipt': receipt_bytes = await field.read()
 
         if not receipt_bytes:
             return web.json_response({"success": False, "error": "To'lov cheki majburiy!"}, status=400)
@@ -365,52 +344,41 @@ async def handle_api_order(request):
         ORDER_COUNTER += 1
         order_id = ORDER_COUNTER
         items = json.loads(items_raw)
-        
         total_sum = 0
-        order_details_text = f"🚨 CHEK RAQAMI #{order_id} (TO'LOV QILINGAN)\n\n"
-        order_details_text += f"👤 Mijoz: {name}\n📞 Telefon: {phone}\n📍 Manzil: {address}\n\n🛍 Mahsulotlar:\n"
+        
+        order_details_text = f"🚨 CHEK RAQAMI #{order_id} (TO'LOV QILINGAN)\n\n👤 Mijoz: {name}\n📞 Telefon: {phone}\n📍 Manzil: {address}\n\n🛍 Mahsulotlar:\n"
         
         for key, item in items.items():
             idx = int(item.get("originalIndex", 0))
             qty = int(item.get("quantity", 1))
-            
             if idx < len(PRODUCTS_DB):
                 PRODUCTS_DB[idx]["stock"] = max(0, PRODUCTS_DB[idx]["stock"] - qty)
                 subtotal = PRODUCTS_DB[idx]["price"] * qty
                 total_sum += subtotal
-                order_details_text += f"▪️ {PRODUCTS_DB[idx]['title']} - {qty} dona * {PRODUCTS_DB[idx]['price']:,.0f} so'm = {subtotal:,.0f} so'm\n"
+                order_details_text += f"▪️ {PRODUCTS_DB[idx]['title']} - {qty} dona = {subtotal:,.0f} so'm\n"
 
-        order_details_text += f"\n💰 Jami to'langan summa: {total_sum:,.0f} so'm"
+        order_details_text += f"\n💰 Jami: {total_sum:,.0f} so'm"
         
         ORDERS_DB[order_id] = {
-            "name": name,
-            "phone": phone,
-            "address": address,
-            "items": items,
-            "total_sum": total_sum,
-            "receipt_bytes": receipt_bytes
+            "name": name, "phone": phone, "address": address,
+            "items": items, "total_sum": total_sum, "receipt_bytes": receipt_bytes
         }
 
         order_page_url = f"{RENDER_URL}/order/{order_id}"
         markup = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔍 Chek va mahsulotlarni ko'rish", web_app=WebAppInfo(url=order_page_url))],
+            [InlineKeyboardButton(text="🔍 Chekni ko'rish", web_app=WebAppInfo(url=order_page_url))],
             [InlineKeyboardButton(text="✅ Yig'ib yuborildi", callback_data=f"complete_order_{order_id}")]
         ])
         
         receipt_photo = BufferedInputFile(receipt_bytes, filename=f"check_{order_id}.jpg")
-        await bot.send_photo(
-            chat_id=GROUP_ID, 
-            photo=receipt_photo, 
-            caption=order_details_text, 
-            reply_markup=markup
-        )
+        await bot.send_photo(chat_id=GROUP_ID, photo=receipt_photo, caption=order_details_text, reply_markup=markup)
             
         return web.json_response({"success": True, "order_id": order_id})
     except Exception as e:
-        logging.error(f"Xatolik: {e}")
+        logging.error(f"Buyurtmani qabul qilishda xatolik: {e}")
         return web.json_response({"success": False, "error": str(e)}, status=400)
 
-async def web_server():
+async def main():
     app = web.Application()
     app.router.add_get("/", handle_index)
     app.router.add_get("/api/data", handle_api_data)
@@ -423,15 +391,16 @@ async def web_server():
     port = int(os.environ.get("PORT", 10000))
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
-    logging.info(f"Web server started on port {port}")
+    logging.info(f"Web server muvaffaqiyatli ishga tushdi: {port}-port")
 
-async def main():
     await bot.delete_webhook(drop_pending_updates=True)
-    await web_server()
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
-        logging.info("To'xtatildi.")
+        logging.info("Bot to'xtatildi.")
+    except Exception as e:
+        logging.critical(f"Kritik xatolik tufayli to'xtadi: {e}")
+        exit(1)
