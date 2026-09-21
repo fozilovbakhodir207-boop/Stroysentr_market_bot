@@ -279,6 +279,23 @@ async def handle_order_view(request):
     if not order:
         return web.Response(text="<h1>Buyurtma topilmadi yoki eskirgan.</h1>", content_type="text/html", status=404)
     
+    items_html = ""
+    for key, item in order['items'].items():
+        idx = int(item.get("originalIndex", 0))
+        qty = int(item.get("quantity", 1))
+        if idx < len(PRODUCTS_DB):
+            prod = PRODUCTS_DB[idx]
+            subtotal = prod['price'] * qty
+            items_html += f"""
+            <div class="item-row">
+                <img src="{prod['image_url']}" class="item-img">
+                <div>
+                    <p style="font-weight: bold; margin: 0 0 4px 0;">{prod['title']}</p>
+                    <p style="margin: 0; color: #4a5568;">{qty} dona × {prod['price']:,.0f} so'm = <b>{subtotal:,.0f} so'm</b></p>
+                </div>
+            </div>
+            """
+
     html_content = f"""
     <!DOCTYPE html>
     <html lang="uz">
@@ -291,6 +308,8 @@ async def handle_order_view(request):
             .card {{ background: white; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }}
             h2 {{ font-size: 17px; margin-top: 0; border-bottom: 2px solid #edf2f7; padding-bottom: 6px; }}
             p {{ font-size: 14px; margin: 6px 0; }}
+            .item-row {{ display: flex; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #edf2f7; padding-bottom: 8px; }}
+            .item-img {{ width: 55px; height: 55px; object-fit: cover; border-radius: 8px; margin-right: 12px; background: #eee; }}
             .receipt-img {{ width: 100%; max-height: 400px; object-fit: contain; border-radius: 8px; margin-top: 8px; }}
             .total {{ color: #2f855a; font-weight: bold; font-size: 16px; }}
         </style>
@@ -301,7 +320,11 @@ async def handle_order_view(request):
             <p><b>Mijoz:</b> {order['name']}</p>
             <p><b>Telefon:</b> <a href="tel:{order['phone']}">{order['phone']}</a></p>
             <p><b>Manzil:</b> {order['address']}</p>
-            <p style="margin-top: 10px;"><b>Jami summa:</b> <span class="total">{order['total_sum']:,.0f} so'm</span></p>
+        </div>
+        <div class="card">
+            <h2>🛍 Buyurtma qilingan mahsulotlar:</h2>
+            {items_html}
+            <p style="margin-top: 12px; text-align: right;"><b>Jami summa:</b> <span class="total">{order['total_sum']:,.0f} so'm</span></p>
         </div>
         <div class="card">
             <h2>💳 Mijoz yuklagan to'lov cheki:</h2>
@@ -364,7 +387,6 @@ async def handle_api_order(request):
 
         order_page_url = f"{RENDER_URL}/order/{order_id}"
         
-        # Xatolik bermaydigan to'g'ri URL tugma
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🔍 Chek va mahsulotlarni ko'rish", url=order_page_url)],
             [InlineKeyboardButton(text="✅ Yig'ib yuborildi", callback_data=f"complete_order_{order_id}")]
