@@ -20,8 +20,8 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-# Muhim o'zgaruvchilarni olish va tekshirish
-BOT_TOKEN = os.getenv("BOT_TOKEN").strip()
+# Muhim o'zgaruvchilarni olish
+BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 if not BOT_TOKEN:
     logging.critical("XATOLIK: BOT_TOKEN muhit o'zgaruvchisi topilmadi!")
     exit(1)
@@ -291,8 +291,6 @@ async def handle_order_view(request):
             .card {{ background: white; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }}
             h2 {{ font-size: 17px; margin-top: 0; border-bottom: 2px solid #edf2f7; padding-bottom: 6px; }}
             p {{ font-size: 14px; margin: 6px 0; }}
-            .item-row {{ display: flex; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #edf2f7; padding-bottom: 8px; }}
-            .item-img {{ width: 55px; height: 55px; object-fit: cover; border-radius: 8px; margin-right: 12px; background: #eee; }}
             .receipt-img {{ width: 100%; max-height: 400px; object-fit: contain; border-radius: 8px; margin-top: 8px; }}
             .total {{ color: #2f855a; font-weight: bold; font-size: 16px; }}
         </style>
@@ -365,8 +363,10 @@ async def handle_api_order(request):
         }
 
         order_page_url = f"{RENDER_URL}/order/{order_id}"
+        
+        # Xatolik bermaydigan to'g'ri URL tugma
         markup = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔍 Chekni ko'rish", web_app=WebAppInfo(url=order_page_url))],
+            [InlineKeyboardButton(text="🔍 Chek va mahsulotlarni ko'rish", url=order_page_url)],
             [InlineKeyboardButton(text="✅ Yig'ib yuborildi", callback_data=f"complete_order_{order_id}")]
         ])
         
