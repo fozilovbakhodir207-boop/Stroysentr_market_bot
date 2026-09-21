@@ -21,7 +21,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "8599909804:AAFOEBP7SX-ynQllqrqjVQ-tDIh6AsWXN
 ADMIN_ID = int(os.getenv("ADMIN_ID", 6986848905))
 GROUP_ID = os.getenv("GROUP_ID", "-1004434264658")
 
-# RENDER_URL to'g'ri formatda bo'lishini ta'minlaymiz (https:// majburiy)
+# RENDER_URL to'g'ri formatda bo'lishini ta'minlaymiz
 RENDER_URL = os.getenv("RENDER_URL", "https://stroysentr-market-bot.onrender.com").strip()
 if not RENDER_URL.startswith("http"):
     RENDER_URL = f"https://{RENDER_URL}"
