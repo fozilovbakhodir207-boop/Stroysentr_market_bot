@@ -111,7 +111,9 @@ class EditCardStates(StatesGroup):
 
 
 def main_menu_markup(user_id: int) -> ReplyKeyboardMarkup:
-    mini_app_url = f"{RENDER_URL}/"
+    # Oxiriga versiya belgisi qo'shiladi - shunda Telegram sahifani
+    # eski keshdan emas, har doim serverdan yangidan yuklaydi.
+    mini_app_url = f"{RENDER_URL}/?v={int(time.time())}"
     buttons = [
         [KeyboardButton(text="🛍️ Katalog (Mini App)", web_app=WebAppInfo(url=mini_app_url))],
         [KeyboardButton(text="📍 Do'kon manzili"), KeyboardButton(text="📞 Aloqa markazi")]
@@ -359,13 +361,20 @@ async def complete_order_callback(callback: CallbackQuery):
 
 
 # --- WEB SERVER & API ---
+NO_CACHE_HEADERS = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
+
 async def handle_index(request):
     try:
         index_path = os.path.join(BASE_DIR, "index.html")
         if os.path.exists(index_path):
-            return web.FileResponse(index_path)
+            return web.FileResponse(index_path, headers=NO_CACHE_HEADERS)
         else:
-            return web.Response(text="<h1>Stroy Sentr Mini App ishlamoqda! index.html topilmadi.</h1>", content_type="text/html")
+            return web.Response(text="<h1>Stroy Sentr Mini App ishlamoqda! index.html topilmadi.</h1>", content_type="text/html", headers=NO_CACHE_HEADERS)
     except Exception as e:
         return web.Response(text=f"Xatolik: {e}", content_type="text/plain", status=500)
 
