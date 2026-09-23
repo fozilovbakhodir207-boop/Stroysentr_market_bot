@@ -2,21 +2,22 @@ import os
 import logging
 import asyncio
 import json
+import time
 from aiohttp import web
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import (
-    Message, ReplyKeyboardMarkup, KeyboardButton, 
+    Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove,
     InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, CallbackQuery
 )
+from aiogram.types.input_file import FSInputFile
 from aiogram.filters import Command
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types.input_file import BufferedInputFile
 
 # Logging sozlamalari
 logging.basicConfig(
-    level=logging.INFO, 
+    level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
@@ -40,33 +41,76 @@ if not RENDER_URL.startswith("http"):
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
-# Ma'lumotlar bazasi
+# --- Fayl tizimi orqali doimiy saqlash (Render qayta ishga tushsa ham yo'qolmasligi uchun) ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_FILE = os.path.join(BASE_DIR, "data.json")
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+PRODUCTS_IMG_DIR = os.path.join(UPLOAD_DIR, "products")
+RECEIPTS_DIR = os.path.join(UPLOAD_DIR, "receipts")
+os.makedirs(PRODUCTS_IMG_DIR, exist_ok=True)
+os.makedirs(RECEIPTS_DIR, exist_ok=True)
+
+DEFAULT_CATEGORIES = ["Elektr asboblari", "Santexnika", "Bo'yoq va lok", "Dekor", "Asboblar", "Boshqa"]
+
 PRODUCTS_DB = []
-ORDERS_DB = {}  
+ORDERS_DB = {}
 ORDER_COUNTER = 100
-SHOP_SETTINGS = {
-    "card_number": "4097 8300 8361 0556"
-}
+SHOP_SETTINGS = {"card_number": "4097 8300 8361 0556"}
+
+
+def save_data():
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump({
+                "products": PRODUCTS_DB,
+                "orders": ORDERS_DB,
+                "order_counter": ORDER_COUNTER,
+                "shop_settings": SHOP_SETTINGS,
+            }, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logging.error(f"Ma'lumotlarni saqlashda xatolik: {e}")
+
+
+def load_data():
+    global PRODUCTS_DB, ORDERS_DB, ORDER_COUNTER, SHOP_SETTINGS
+    if not os.path.exists(DATA_FILE):
+        return
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        PRODUCTS_DB = data.get("products", [])
+        # JSON kalitlari doim string bo'ladi, order_id larni int'ga qaytaramiz
+        ORDERS_DB = {int(k): v for k, v in data.get("orders", {}).items()}
+        ORDER_COUNTER = data.get("order_counter", 100)
+        SHOP_SETTINGS.update(data.get("shop_settings", {}))
+        logging.info(f"Ma'lumotlar yuklandi: {len(PRODUCTS_DB)} mahsulot, {len(ORDERS_DB)} buyurtma.")
+    except Exception as e:
+        logging.error(f"Ma'lumotlarni yuklashda xatolik: {e}")
+
+
+load_data()
+
 
 # FSM Holatlari
 class AddProductStates(StatesGroup):
     title = State()
     price = State()
     stock = State()
+    category = State()
     description = State()
     photo = State()
+
 
 class EditStockStates(StatesGroup):
     select_product = State()
     new_stock = State()
 
+
 class EditCardStates(StatesGroup):
     new_card = State()
 
-@dp.message(Command("start"))
-async def start_cmd(message: Message, state: FSMContext):
-    await state.clear()
-    user_id = message.from_user.id
+
+def main_menu_markup(user_id: int) -> ReplyKeyboardMarkup:
     mini_app_url = f"{RENDER_URL}/"
     buttons = [
         [KeyboardButton(text="🛍️ Katalog (Mini App)", web_app=WebAppInfo(url=mini_app_url))],
@@ -74,17 +118,39 @@ async def start_cmd(message: Message, state: FSMContext):
     ]
     if user_id == ADMIN_ID:
         buttons.append([KeyboardButton(text="⚙️ Admin panel")])
+    return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
 
-    markup = ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)
-    await message.answer("Assalomu alaykum! **STROY SENTR** qurilish mollari do'koniga xush kelibsiz 🏗", reply_markup=markup, parse_mode="Markdown")
+
+def admin_menu_markup() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="➕ Mahsulot qo'shish"), KeyboardButton(text="🔄 Qoldiqni o'zgartirish")],
+            [KeyboardButton(text="💳 Karta raqamini o'zgartirish"), KeyboardButton(text="📦 Mahsulotlar ro'yxati")],
+            [KeyboardButton(text="🔙 Asosiy menyu")]
+        ],
+        resize_keyboard=True
+    )
+
+
+@dp.message(Command("start"))
+async def start_cmd(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer(
+        "Assalomu alaykum! **STROY SENTR** qurilish mollari do'koniga xush kelibsiz 🏗",
+        reply_markup=main_menu_markup(message.from_user.id),
+        parse_mode="Markdown"
+    )
+
 
 @dp.message(F.text == "📍 Do'kon manzili")
 async def show_address(message: Message):
     await message.answer("📍 Manzil: Farg'ona viloyati, Yaypan shahri, Stroy Sentr do'koni.")
 
+
 @dp.message(F.text == "📞 Aloqa markazi")
 async def show_contacts(message: Message):
     await message.answer("📞 Aloqa markazi: +998 97 105 16 56\n👨‍💻 Menedjer: @Fozilov_Bahodirjon")
+
 
 # --- ADMIN PANEL ---
 @dp.message(Command("admin"))
@@ -93,15 +159,12 @@ async def admin_cmd(message: Message, state: FSMContext):
     if message.from_user.id != ADMIN_ID:
         return
     await state.clear()
-    admin_markup = ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="➕ Mahsulot qo'shish"), KeyboardButton(text="🔄 Qoldiqni o'zgartirish")],
-            [KeyboardButton(text="💳 Karta raqamini o'zgartirish"), KeyboardButton(text="📦 Mahsulotlar ro'yxati")],
-            [KeyboardButton(text="🔙 Asosiy menyu")]
-        ],
-        resize_keyboard=True
+    await message.answer(
+        f"🛠 **Admin paneli**:\nJoriy to'lov karta: `{SHOP_SETTINGS['card_number']}`",
+        reply_markup=admin_menu_markup(),
+        parse_mode="Markdown"
     )
-    await message.answer(f"🛠 **Admin paneli**:\nJoriy to'lov karta: `{SHOP_SETTINGS['card_number']}`", reply_markup=admin_markup, parse_mode="Markdown")
+
 
 @dp.message(F.text == "💳 Karta raqamini o'zgartirish")
 async def edit_card_start(message: Message, state: FSMContext):
@@ -110,20 +173,24 @@ async def edit_card_start(message: Message, state: FSMContext):
     await message.answer(f"Joriy karta raqami: `{SHOP_SETTINGS['card_number']}`\n\nYangi karta raqami va egasining F.I.O. ni kiriting:", parse_mode="Markdown")
     await state.set_state(EditCardStates.new_card)
 
+
 @dp.message(EditCardStates.new_card)
 async def edit_card_finish(message: Message, state: FSMContext):
     if message.from_user.id != ADMIN_ID:
         return
     SHOP_SETTINGS["card_number"] = message.text.strip()
-    await message.answer(f"✅ Karta raqami muvaffaqiyatli yangilandi:\n`{SHOP_SETTINGS['card_number']}`", parse_mode="Markdown")
+    save_data()
+    await message.answer(f"✅ Karta raqami muvaffaqiyatli yangilandi:\n`{SHOP_SETTINGS['card_number']}`", parse_mode="Markdown", reply_markup=admin_menu_markup())
     await state.clear()
+
 
 @dp.message(F.text == "➕ Mahsulot qo'shish")
 async def start_add_product(message: Message, state: FSMContext):
     if message.from_user.id != ADMIN_ID:
         return
-    await message.answer("📝 Mahsulot nomini kiriting:")
+    await message.answer("📝 Mahsulot nomini kiriting:", reply_markup=ReplyKeyboardRemove())
     await state.set_state(AddProductStates.title)
+
 
 @dp.message(AddProductStates.title)
 async def process_title(message: Message, state: FSMContext):
@@ -132,6 +199,7 @@ async def process_title(message: Message, state: FSMContext):
     await state.update_data(title=message.text)
     await message.answer("💰 Narxini kiriting (so'mda):")
     await state.set_state(AddProductStates.price)
+
 
 @dp.message(AddProductStates.price)
 async def process_price(message: Message, state: FSMContext):
@@ -145,6 +213,7 @@ async def process_price(message: Message, state: FSMContext):
     except ValueError:
         await message.answer("❌ Faqat raqam kiriting:")
 
+
 @dp.message(AddProductStates.stock)
 async def process_stock(message: Message, state: FSMContext):
     if message.from_user.id != ADMIN_ID:
@@ -152,10 +221,25 @@ async def process_stock(message: Message, state: FSMContext):
     try:
         stock = int(message.text)
         await state.update_data(stock=stock)
-        await message.answer("📄 Tavsif yozing:")
-        await state.set_state(AddProductStates.description)
+        cat_markup = ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text=c)] for c in DEFAULT_CATEGORIES],
+            resize_keyboard=True
+        )
+        await message.answer("🏷 Kategoriyasini tanlang (yoki o'zingiz yozing):", reply_markup=cat_markup)
+        await state.set_state(AddProductStates.category)
     except ValueError:
         await message.answer("❌ Faqat butun son kiriting:")
+
+
+@dp.message(AddProductStates.category)
+async def process_category(message: Message, state: FSMContext):
+    if message.from_user.id != ADMIN_ID:
+        return
+    category = message.text.strip() or "Boshqa"
+    await state.update_data(category=category)
+    await message.answer("📄 Tavsif yozing:", reply_markup=ReplyKeyboardRemove())
+    await state.set_state(AddProductStates.description)
+
 
 @dp.message(AddProductStates.description)
 async def process_description(message: Message, state: FSMContext):
@@ -165,26 +249,37 @@ async def process_description(message: Message, state: FSMContext):
     await message.answer("📸 Mahsulot rasmini yuboring:")
     await state.set_state(AddProductStates.photo)
 
+
 @dp.message(AddProductStates.photo, F.photo)
 async def process_photo(message: Message, state: FSMContext):
     if message.from_user.id != ADMIN_ID:
         return
     photo_file_id = message.photo[-1].file_id
     file = await bot.get_file(photo_file_id)
-    photo_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file.file_path}"
-    
+
+    # Rasmni Telegramning vaqtinchalik (va token oshkor bo'ladigan) havolasi
+    # orqali emas, o'zimizning serverimizda saqlaymiz - shunda doim ishlaydi va xavfsiz.
+    filename = f"prod_{int(time.time() * 1000)}.jpg"
+    local_path = os.path.join(PRODUCTS_IMG_DIR, filename)
+    await bot.download_file(file.file_path, destination=local_path)
+    image_url = f"/uploads/products/{filename}"
+
     data = await state.get_data()
     product = {
         "title": data.get("title"),
         "price": data.get("price"),
         "stock": data.get("stock"),
+        "category": data.get("category", "Boshqa"),
         "description": data.get("description"),
-        "photo_id": photo_file_id,
-        "image_url": photo_url
+        "image_url": image_url,
+        "reviews": [],
     }
     PRODUCTS_DB.append(product)
-    await message.answer("✅ Mahsulot muvaffaqiyatli qo'shildi!")
+    save_data()
+
+    await message.answer("✅ Mahsulot muvaffaqiyatli qo'shildi!", reply_markup=admin_menu_markup())
     await state.clear()
+
 
 @dp.message(F.text == "📦 Mahsulotlar ro'yxati")
 async def list_products(message: Message):
@@ -194,7 +289,11 @@ async def list_products(message: Message):
         await message.answer("📭 Hozircha mahsulotlar yo'q.")
         return
     for idx, p in enumerate(PRODUCTS_DB):
-        await message.answer_photo(p['photo_id'], caption=f"🆔 ID: {idx}\n📦 {p['title']}\n💰 {p['price']} so'm\n📦 Omborda: {p['stock']} dona")
+        await message.answer(
+            f"🆔 ID: {idx}\n📦 {p['title']}\n🏷 {p.get('category', 'Boshqa')}\n"
+            f"💰 {p['price']} so'm\n📦 Omborda: {p['stock']} dona\n⭐️ Izohlar: {len(p.get('reviews', []))}"
+        )
+
 
 @dp.message(F.text == "🔄 Qoldiqni o'zgartirish")
 async def edit_stock_start(message: Message, state: FSMContext):
@@ -208,6 +307,7 @@ async def edit_stock_start(message: Message, state: FSMContext):
         text += f"{idx}: {p['title']} (Omborda: {p['stock']} dona)\n"
     await message.answer(text)
     await state.set_state(EditStockStates.select_product)
+
 
 @dp.message(EditStockStates.select_product)
 async def edit_stock_select(message: Message, state: FSMContext):
@@ -223,6 +323,7 @@ async def edit_stock_select(message: Message, state: FSMContext):
     except ValueError:
         await message.answer("❌ Noto'g'ri ID:")
 
+
 @dp.message(EditStockStates.new_stock)
 async def edit_stock_finish(message: Message, state: FSMContext):
     if message.from_user.id != ADMIN_ID:
@@ -232,15 +333,18 @@ async def edit_stock_finish(message: Message, state: FSMContext):
         data = await state.get_data()
         idx = data.get("product_idx")
         PRODUCTS_DB[idx]['stock'] = new_stock
-        await message.answer(f"✅ Muvaffaqiyatli! Qoldiq {new_stock} taga o'zgartirildi.")
+        save_data()
+        await message.answer(f"✅ Muvaffaqiyatli! Qoldiq {new_stock} taga o'zgartirildi.", reply_markup=admin_menu_markup())
         await state.clear()
     except ValueError:
         await message.answer("❌ Faqat butun son kiriting:")
+
 
 @dp.message(F.text == "🔙 Asosiy menyu")
 async def back_to_main(message: Message, state: FSMContext):
     await state.clear()
     await start_cmd(message, state)
+
 
 @dp.callback_query(F.data.startswith("complete_order_"))
 async def complete_order_callback(callback: CallbackQuery):
@@ -249,36 +353,83 @@ async def complete_order_callback(callback: CallbackQuery):
         return
 
     order_id = callback.data.split("_")[2]
-    new_text = callback.message.caption + f"\n\n✅ STATUS: Yig'ildi va yuborildi!"
+    new_text = callback.message.caption + "\n\n✅ STATUS: Yig'ildi va yuborildi!"
     await callback.message.edit_caption(caption=new_text, reply_markup=None)
     await callback.answer("Buyurtma bajarildi deb belgilandi!")
+
 
 # --- WEB SERVER & API ---
 async def handle_index(request):
     try:
-        if os.path.exists('./index.html'):
-            return web.FileResponse('./index.html')
+        index_path = os.path.join(BASE_DIR, "index.html")
+        if os.path.exists(index_path):
+            return web.FileResponse(index_path)
         else:
             return web.Response(text="<h1>Stroy Sentr Mini App ishlamoqda! index.html topilmadi.</h1>", content_type="text/html")
     except Exception as e:
         return web.Response(text=f"Xatolik: {e}", content_type="text/plain", status=500)
 
+
+def _product_public(idx, p):
+    reviews = p.get("reviews", [])
+    avg = round(sum(r["rating"] for r in reviews) / len(reviews), 1) if reviews else 0
+    return {
+        "id": idx,
+        "title": p["title"],
+        "price": p["price"],
+        "stock": p["stock"],
+        "category": p.get("category", "Boshqa"),
+        "description": p.get("description", ""),
+        "image_url": p["image_url"],
+        "reviews": reviews,
+        "rating_avg": avg,
+        "rating_count": len(reviews),
+    }
+
+
 async def handle_api_data(request):
     return web.json_response({
-        "products": PRODUCTS_DB,
-        "card_number": SHOP_SETTINGS["card_number"]
+        "products": [_product_public(i, p) for i, p in enumerate(PRODUCTS_DB)],
+        "categories": DEFAULT_CATEGORIES,
+        "card_number": SHOP_SETTINGS["card_number"],
     })
+
+
+async def handle_add_review(request):
+    try:
+        idx = int(request.match_info.get('id', -1))
+        if idx < 0 or idx >= len(PRODUCTS_DB):
+            return web.json_response({"success": False, "error": "Mahsulot topilmadi"}, status=404)
+        body = await request.json()
+        name = str(body.get("name", "Anonim")).strip()[:60] or "Anonim"
+        comment = str(body.get("comment", "")).strip()[:500]
+        try:
+            rating = int(body.get("rating", 5))
+        except (TypeError, ValueError):
+            rating = 5
+        rating = max(1, min(5, rating))
+        if not comment:
+            return web.json_response({"success": False, "error": "Izoh matni bo'sh bo'lmasin"}, status=400)
+
+        review = {"name": name, "rating": rating, "comment": comment, "date": int(time.time())}
+        PRODUCTS_DB[idx].setdefault("reviews", []).append(review)
+        save_data()
+        return web.json_response({"success": True, "review": review})
+    except Exception as e:
+        logging.error(f"Izoh qo'shishda xatolik: {e}")
+        return web.json_response({"success": False, "error": str(e)}, status=400)
+
 
 async def handle_order_view(request):
     try:
         order_id = int(request.match_info.get('id', 0))
     except ValueError:
         return web.Response(text="<h1>Noto'g'ri buyurtma ID raqami</h1>", content_type="text/html", status=400)
-    
+
     order = ORDERS_DB.get(order_id)
     if not order:
         return web.Response(text="<h1>Buyurtma topilmadi yoki eskirgan.</h1>", content_type="text/html", status=404)
-    
+
     items_html = ""
     for key, item in order['items'].items():
         idx = int(item.get("originalIndex", 0))
@@ -335,29 +486,39 @@ async def handle_order_view(request):
     """
     return web.Response(text=html_content, content_type="text/html")
 
+
 async def handle_receipt_image(request):
     try:
         order_id = int(request.match_info.get('id', 0))
     except ValueError:
         return web.Response(text="Topilmadi", status=404)
-    
+
     order = ORDERS_DB.get(order_id)
-    if not order or not order.get('receipt_bytes'):
+    if not order or not order.get('receipt_path'):
         return web.Response(text="Topilmadi", status=404)
-    return web.Response(body=order['receipt_bytes'], content_type="image/jpeg")
+    receipt_path = order['receipt_path']
+    if not os.path.exists(receipt_path):
+        return web.Response(text="Topilmadi", status=404)
+    return web.FileResponse(receipt_path)
+
 
 async def handle_api_order(request):
     global ORDER_COUNTER
     try:
         reader = await request.multipart()
         name, phone, address, items_raw, receipt_bytes = "", "", "", "{}", None
-        
+
         async for field in reader:
-            if field.name == 'name': name = await field.text()
-            elif field.name == 'phone': phone = await field.text()
-            elif field.name == 'address': address = await field.text()
-            elif field.name == 'items': items_raw = await field.text()
-            elif field.name == 'receipt': receipt_bytes = await field.read()
+            if field.name == 'name':
+                name = await field.text()
+            elif field.name == 'phone':
+                phone = await field.text()
+            elif field.name == 'address':
+                address = await field.text()
+            elif field.name == 'items':
+                items_raw = await field.text()
+            elif field.name == 'receipt':
+                receipt_bytes = await field.read()
 
         if not receipt_bytes:
             return web.json_response({"success": False, "error": "To'lov cheki majburiy!"}, status=400)
@@ -366,9 +527,9 @@ async def handle_api_order(request):
         order_id = ORDER_COUNTER
         items = json.loads(items_raw)
         total_sum = 0
-        
+
         order_details_text = f"🚨 CHEK RAQAMI #{order_id} (TO'LOV QILINGAN)\n\n👤 Mijoz: {name}\n📞 Telefon: {phone}\n📍 Manzil: {address}\n\n🛍 Mahsulotlar:\n"
-        
+
         for key, item in items.items():
             idx = int(item.get("originalIndex", 0))
             qty = int(item.get("quantity", 1))
@@ -379,35 +540,48 @@ async def handle_api_order(request):
                 order_details_text += f"▪️ {PRODUCTS_DB[idx]['title']} - {qty} dona = {subtotal:,.0f} so'm\n"
 
         order_details_text += f"\n💰 Jami: {total_sum:,.0f} so'm"
-        
+
+        receipt_filename = f"order_{order_id}.jpg"
+        receipt_path = os.path.join(RECEIPTS_DIR, receipt_filename)
+        with open(receipt_path, "wb") as f:
+            f.write(receipt_bytes)
+
         ORDERS_DB[order_id] = {
             "name": name, "phone": phone, "address": address,
-            "items": items, "total_sum": total_sum, "receipt_bytes": receipt_bytes
+            "items": items, "total_sum": total_sum, "receipt_path": receipt_path
         }
+        save_data()
 
         order_page_url = f"{RENDER_URL}/order/{order_id}"
-        
+
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🔍 Chek va mahsulotlarni ko'rish", url=order_page_url)],
             [InlineKeyboardButton(text="✅ Yig'ib yuborildi", callback_data=f"complete_order_{order_id}")]
         ])
-        
-        receipt_photo = BufferedInputFile(receipt_bytes, filename=f"check_{order_id}.jpg")
-        await bot.send_photo(chat_id=GROUP_ID, photo=receipt_photo, caption=order_details_text, reply_markup=markup)
-            
+
+        await bot.send_photo(
+            chat_id=GROUP_ID,
+            photo=FSInputFile(receipt_path),
+            caption=order_details_text,
+            reply_markup=markup
+        )
+
         return web.json_response({"success": True, "order_id": order_id})
     except Exception as e:
         logging.error(f"Buyurtmani qabul qilishda xatolik: {e}")
         return web.json_response({"success": False, "error": str(e)}, status=400)
 
+
 async def main():
     app = web.Application()
     app.router.add_get("/", handle_index)
     app.router.add_get("/api/data", handle_api_data)
+    app.router.add_post("/api/product/{id}/review", handle_add_review)
     app.router.add_get("/order/{id}", handle_order_view)
     app.router.add_get("/api/order/{id}/receipt", handle_receipt_image)
     app.router.add_post("/api/order", handle_api_order)
-    
+    app.router.add_static("/uploads/", UPLOAD_DIR, show_index=False)
+
     runner = web.AppRunner(app)
     await runner.setup()
     port = int(os.environ.get("PORT", 10000))
@@ -417,6 +591,7 @@ async def main():
 
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     try:

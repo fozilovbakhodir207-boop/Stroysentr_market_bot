@@ -1,206 +1,653 @@
 <!DOCTYPE html>
 <html lang="uz">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stroy Sentr Market</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        body { background: #f4f6f8; padding: 12px; padding-bottom: 100px; color: #2d3748; }
-        header { text-align: center; margin-bottom: 16px; }
-        h1 { font-size: 20px; color: #1a202c; font-weight: 700; }
-        
-        .product-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-        @media (min-width: 600px) { .product-grid { grid-template-columns: repeat(3, 1fr); } }
-        
-        .product-card { background: #fff; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
-        .product-img { width: 100%; height: 130px; object-fit: cover; border-radius: 8px; background: #edf2f7; }
-        .product-title { font-size: 14px; font-weight: 600; margin: 8px 0 4px 0; color: #2d3748; }
-        .product-desc { font-size: 11px; color: #718096; margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-        .product-price { font-size: 14px; font-weight: 700; color: #2f855a; margin-bottom: 4px; }
-        .product-stock { font-size: 10px; color: #a0aec0; margin-bottom: 8px; }
-        
-        .add-btn { background: #0088cc; color: white; border: none; padding: 8px; border-radius: 8px; font-weight: 600; font-size: 12px; cursor: pointer; width: 100%; text-align: center; }
-        .add-btn:active { background: #006699; }
-        
-        .cart-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #2f855a; color: white; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 15px; box-shadow: 0 -4px 12px rgba(0,0,0,0.1); display: none; cursor: pointer; z-index: 100; }
-        
-        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; justify-content: center; align-items: flex-end; }
-        .modal-content { background: white; width: 100%; max-width: 500px; border-radius: 20px 20px 0 0; padding: 20px; max-height: 90vh; overflow-y: auto; }
-        .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 14px; color: #1a202c; }
-        .form-group { margin-bottom: 12px; }
-        .form-group label { display: block; font-size: 12px; font-weight: 600; color: #4a5568; margin-bottom: 4px; }
-        .form-control { width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 14px; }
-        .submit-btn { background: #2f855a; color: white; border: none; width: 100%; padding: 12px; border-radius: 8px; font-weight: 700; font-size: 15px; margin-top: 10px; cursor: pointer; }
-        
-        .payment-box { background: #fffaf0; border: 1px solid #feebc8; padding: 12px; border-radius: 8px; margin-bottom: 14px; }
-        .payment-box p { font-size: 13px; color: #744210; margin-bottom: 4px; }
-        .card-number { font-size: 16px; font-weight: 700; color: #c05621; letter-spacing: 1px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Stroy Sentr Market</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --purple:#7000ff;
+    --purple-dark:#5a00cc;
+    --bg:#f2f2f7;
+    --card:#ffffff;
+    --text:#1a1a2e;
+    --muted:#8a8a9e;
+    --green:#0aad5c;
+    --danger:#ff3b30;
+    --star:#ffb800;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;-webkit-tap-highlight-color:transparent;}
+  html,body{background:var(--bg);color:var(--text);}
+  body{padding-bottom:90px;}
+  img{-webkit-user-drag:none;}
+  .hidden{display:none !important;}
+
+  /* Header */
+  .topbar{background:var(--purple);color:#fff;padding:14px 14px 16px;position:sticky;top:0;z-index:20;border-radius:0 0 18px 18px;}
+  .topbar h1{font-size:19px;font-weight:800;display:flex;align-items:center;gap:6px;}
+  .search-wrap{margin-top:10px;position:relative;}
+  .search-wrap input{width:100%;border:none;border-radius:12px;padding:11px 14px 11px 36px;font-size:14px;outline:none;}
+  .search-wrap::before{content:"🔍";position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:13px;}
+
+  .cats{display:flex;gap:8px;overflow-x:auto;padding:12px 12px 4px;scrollbar-width:none;}
+  .cats::-webkit-scrollbar{display:none;}
+  .chip{flex:0 0 auto;background:var(--card);color:var(--text);font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:20px;box-shadow:0 1px 4px rgba(0,0,0,.06);white-space:nowrap;}
+  .chip.active{background:var(--purple);color:#fff;}
+
+  /* Grid */
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:12px;}
+  .pcard{background:var(--card);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 1px 6px rgba(0,0,0,.05);}
+  .pcard .img-wrap{position:relative;width:100%;aspect-ratio:1/1;background:#eef0f4;}
+  .pcard .img-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
+  .pcard .img-wrap .zoom-hint{position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,.45);color:#fff;font-size:10px;padding:3px 7px;border-radius:8px;}
+  .pcard .body{padding:9px 10px 10px;display:flex;flex-direction:column;gap:4px;flex:1;}
+  .pcard .title{font-size:12.5px;font-weight:600;line-height:1.3;min-height:32px;}
+  .rating-row{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);}
+  .rating-row .stars{color:var(--star);font-size:11px;}
+  .pcard .price{font-size:15px;font-weight:800;color:var(--text);margin-top:2px;}
+  .pcard .stock{font-size:10.5px;color:var(--muted);}
+  .addbtn{margin-top:6px;background:var(--purple);color:#fff;border:none;padding:9px;border-radius:10px;font-weight:700;font-size:12.5px;}
+  .addbtn:active{background:var(--purple-dark);}
+  .addbtn.out{background:#d0d0da;color:#777;}
+  .qty-stepper{margin-top:6px;display:flex;align-items:center;justify-content:space-between;background:var(--purple);border-radius:10px;overflow:hidden;}
+  .qty-stepper button{background:transparent;border:none;color:#fff;font-size:16px;font-weight:800;padding:6px 12px;}
+  .qty-stepper span{color:#fff;font-weight:700;font-size:13px;}
+
+  .empty-msg{grid-column:1/-1;text-align:center;color:var(--muted);font-size:13px;padding:40px 10px;}
+
+  /* Cart bar */
+  .cart-bar{position:fixed;bottom:14px;left:14px;right:14px;background:var(--purple);color:#fff;padding:14px 18px;border-radius:16px;display:none;justify-content:space-between;align-items:center;font-weight:700;font-size:14px;box-shadow:0 6px 20px rgba(112,0,255,.35);z-index:100;}
+
+  /* Screens (product detail / cart) slide over */
+  .screen{position:fixed;inset:0;background:var(--bg);z-index:300;overflow-y:auto;padding-bottom:100px;}
+  .screen-header{background:var(--purple);color:#fff;padding:14px;display:flex;align-items:center;gap:10px;position:sticky;top:0;border-radius:0 0 16px 16px;}
+  .back-btn{background:rgba(255,255,255,.18);border:none;color:#fff;width:32px;height:32px;border-radius:10px;font-size:16px;}
+  .screen-header .htitle{font-size:15px;font-weight:700;flex:1;}
+
+  /* Product detail */
+  .detail-img{width:100%;aspect-ratio:1/1;background:#eef0f4;position:relative;}
+  .detail-img img{width:100%;height:100%;object-fit:cover;display:block;}
+  .detail-img .tap-hint{position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,.5);color:#fff;font-size:11px;padding:5px 10px;border-radius:10px;}
+  .detail-body{background:var(--card);margin:-16px 12px 0;border-radius:16px;padding:16px;position:relative;box-shadow:0 2px 10px rgba(0,0,0,.05);}
+  .detail-title{font-size:17px;font-weight:800;margin-bottom:6px;}
+  .detail-price{font-size:21px;font-weight:900;color:var(--text);margin:6px 0;}
+  .detail-stock{font-size:12px;color:var(--muted);margin-bottom:10px;}
+  .detail-cat{display:inline-block;background:#f0e6ff;color:var(--purple);font-size:11px;font-weight:700;padding:4px 10px;border-radius:10px;margin-bottom:8px;}
+  .detail-desc{font-size:13.5px;line-height:1.5;color:#3a3a4a;margin:10px 0 4px;}
+  .section-title{font-size:14.5px;font-weight:800;margin:18px 12px 8px;}
+  .add-to-cart-row{display:flex;gap:10px;margin-top:14px;}
+  .stepper-big{display:flex;align-items:center;background:var(--bg);border-radius:12px;overflow:hidden;}
+  .stepper-big button{background:transparent;border:none;font-size:19px;font-weight:800;padding:10px 16px;color:var(--purple);}
+  .stepper-big span{font-weight:800;font-size:15px;min-width:24px;text-align:center;}
+  .add-to-cart-row .big-add{flex:1;background:var(--purple);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:14px;}
+  .add-to-cart-row .big-add.out{background:#d0d0da;color:#777;}
+
+  /* Reviews */
+  .review-card{background:var(--card);border-radius:14px;padding:12px 14px;margin:0 12px 10px;box-shadow:0 1px 6px rgba(0,0,0,.05);}
+  .review-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+  .review-name{font-weight:700;font-size:13px;}
+  .review-stars{color:var(--star);font-size:12px;}
+  .review-comment{font-size:12.5px;color:#4a4a5a;line-height:1.4;}
+  .no-reviews{margin:0 12px 10px;color:var(--muted);font-size:12.5px;}
+
+  .review-form{background:var(--card);border-radius:14px;padding:14px;margin:0 12px 16px;box-shadow:0 1px 6px rgba(0,0,0,.05);}
+  .star-picker{display:flex;gap:6px;font-size:24px;margin:8px 0 10px;cursor:pointer;}
+  .star-picker span{color:#ddd;}
+  .star-picker span.on{color:var(--star);}
+  .form-control{width:100%;padding:10px 12px;border:1px solid #e2e2ea;border-radius:10px;font-size:13.5px;margin-bottom:8px;background:#fafafe;}
+  .submit-btn{width:100%;background:var(--purple);color:#fff;border:none;padding:12px;border-radius:10px;font-weight:800;font-size:14px;}
+
+  /* Cart screen */
+  .cart-item{background:var(--card);border-radius:14px;padding:10px;margin:0 12px 10px;display:flex;gap:10px;align-items:center;box-shadow:0 1px 6px rgba(0,0,0,.05);}
+  .cart-item img{width:60px;height:60px;border-radius:10px;object-fit:cover;background:#eee;}
+  .cart-item .info{flex:1;}
+  .cart-item .info .t{font-size:13px;font-weight:700;margin-bottom:2px;}
+  .cart-item .info .p{font-size:12.5px;color:var(--muted);}
+  .cart-item .ctrl{display:flex;align-items:center;gap:8px;}
+  .cart-item .ctrl button{width:26px;height:26px;border-radius:8px;border:none;background:var(--bg);font-weight:800;font-size:15px;}
+  .cart-item .remove{color:var(--danger);font-size:11px;font-weight:700;background:none;border:none;margin-top:4px;}
+  .cart-total-row{margin:16px 12px;background:var(--card);border-radius:14px;padding:14px;display:flex;justify-content:space-between;font-weight:800;font-size:15px;box-shadow:0 1px 6px rgba(0,0,0,.05);}
+  .checkout-btn{margin:0 12px;width:calc(100% - 24px);background:var(--green);color:#fff;border:none;padding:14px;border-radius:12px;font-weight:800;font-size:14.5px;}
+
+  /* Checkout modal */
+  .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;justify-content:center;align-items:flex-end;}
+  .modal.show{display:flex;}
+  .modal-content{background:#fff;width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:20px;max-height:90vh;overflow-y:auto;}
+  .modal-title{font-size:17px;font-weight:800;margin-bottom:14px;}
+  .payment-box{background:#fff7e6;border:1px solid #ffe0a3;padding:12px;border-radius:10px;margin-bottom:14px;}
+  .payment-box p{font-size:12.5px;color:#8a5a00;margin-bottom:4px;}
+  .card-number{font-size:16px;font-weight:800;color:#c05621;letter-spacing:1px;}
+
+  /* Fullscreen viewer */
+  .viewer{display:none;position:fixed;inset:0;background:#000;z-index:900;align-items:center;justify-content:center;}
+  .viewer.show{display:flex;}
+  .viewer img{max-width:100%;max-height:100%;object-fit:contain;}
+  .viewer .close-x{position:absolute;top:18px;right:16px;background:rgba(255,255,255,.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;z-index:2;}
+
+  .toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;z-index:1000;opacity:0;transition:opacity .25s;pointer-events:none;}
+  .toast.show{opacity:1;}
+</style>
 </head>
 <body>
-    <header>
-        <h1>🏗 Stroy Sentr Market</h1>
-    </header>
 
-    <div id="products-list" class="product-grid">Mahsulotlar yuklanmoqda...</div>
-
-    <div id="cart-bar" class="cart-bar" onclick="openCheckoutModal()">
-        <div>🛒 Savatcha (<span id="cart-count">0</span>)</div>
-        <div>Jami: <span id="cart-total">0</span> so'm</div>
+  <div class="topbar">
+    <h1>🏗 Stroy Sentr Market</h1>
+    <div class="search-wrap">
+      <input id="search-input" type="text" placeholder="Mahsulot qidirish...">
     </div>
+  </div>
 
-    <!-- Checkout Modal -->
-    <div id="checkout-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-title">To'lov va Buyurtma</div>
-            
-            <div class="payment-box">
-                <p>💳 **To'lov uchun karta:**</p>
-                <div class="card-number" id="shop-card-number">Yuklanmoqda...</div>
-                <p style="margin-top: 6px;">Jami summa: <b id="modal-total-price">0</b> so'm</p>
-                <p style="font-size: 11px; color: #975a16; margin-top: 4px;">Pulni o'tkazib, pastga to'lov cheki (skrinshot) rasmini yuklang.</p>
-            </div>
+  <div class="cats" id="cats"></div>
+  <div class="grid" id="products-grid"><div class="empty-msg">Yuklanmoqda...</div></div>
 
-            <div class="form-group">
-                <label>Ism va Familiyangiz</label>
-                <input type="text" id="client-name" class="form-control" placeholder="Masalan: Anvar Toshmatov">
-            </div>
-            <div class="form-group">
-                <label>Telefon raqamingiz</label>
-                <input type="tel" id="client-phone" class="form-control" placeholder="+998 90 123 45 67">
-            </div>
-            <div class="form-group">
-                <label>Yetkazib berish manzili</label>
-                <input type="text" id="client-address" class="form-control" placeholder="Yaypan sh., ... ko'chasi">
-            </div>
-            <div class="form-group">
-                <label>📎 To'lov cheki rasmi (Majburiy)</label>
-                <input type="file" id="receipt-file" class="form-control" accept="image/*">
-            </div>
-            <button class="submit-btn" onclick="submitOrder()">Buyurtmani yuborish</button>
+  <div id="cart-bar" class="cart-bar" onclick="openCart()">
+    <div>🛒 Savatcha (<span id="cart-count">0</span>)</div>
+    <div><span id="cart-total">0</span> so'm</div>
+  </div>
+
+  <!-- Product detail screen -->
+  <div id="detail-screen" class="screen hidden">
+    <div class="screen-header">
+      <button class="back-btn" onclick="closeScreen('detail-screen')">←</button>
+      <div class="htitle">Mahsulot</div>
+    </div>
+    <div class="detail-img" id="detail-img-wrap">
+      <img id="detail-img" src="" alt="">
+      <div class="tap-hint">🔍 Kattalashtirish</div>
+    </div>
+    <div class="detail-body">
+      <span class="detail-cat" id="detail-cat"></span>
+      <div class="detail-title" id="detail-title"></div>
+      <div class="rating-row"><span class="stars" id="detail-stars"></span><span id="detail-rating-text"></span></div>
+      <div class="detail-price" id="detail-price"></div>
+      <div class="detail-stock" id="detail-stock"></div>
+      <div class="detail-desc" id="detail-desc"></div>
+      <div class="add-to-cart-row">
+        <div class="stepper-big">
+          <button onclick="detailQty(-1)">−</button>
+          <span id="detail-qty">1</span>
+          <button onclick="detailQty(1)">+</button>
         </div>
+        <button class="big-add" id="detail-add-btn" onclick="addDetailToCart()">Savatga qo'shish</button>
+      </div>
     </div>
 
-    <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
+    <div class="section-title">⭐ Izohlar (<span id="reviews-count">0</span>)</div>
+    <div id="reviews-list"></div>
 
-        let products = [];
-        let cart = {};
+    <div class="section-title">✍️ Izoh qoldirish</div>
+    <div class="review-form">
+      <input class="form-control" id="review-name" placeholder="Ismingiz">
+      <div class="star-picker" id="star-picker">
+        <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
+      </div>
+      <textarea class="form-control" id="review-comment" rows="3" placeholder="Mahsulot haqida fikringiz..."></textarea>
+      <button class="submit-btn" onclick="submitReview()">Izohni yuborish</button>
+    </div>
+  </div>
 
-        // Mahsulotlar va do'kon ma'lumotlarini olish
-        fetch('/api/data')
-            .then(res => res.json())
-            .then(data => {
-                products = data.products;
-                document.getElementById('shop-card-number').innerText = data.card_number;
-                renderProducts();
-            });
+  <!-- Cart screen -->
+  <div id="cart-screen" class="screen hidden">
+    <div class="screen-header">
+      <button class="back-btn" onclick="closeScreen('cart-screen')">←</button>
+      <div class="htitle">Savatcha</div>
+    </div>
+    <div id="cart-items-list" style="margin-top:12px;"></div>
+    <div class="cart-total-row"><span>Jami:</span><span id="cart-screen-total">0 so'm</span></div>
+    <button class="checkout-btn" id="checkout-open-btn" onclick="openCheckoutModal()">Buyurtmani rasmiylashtirish</button>
+  </div>
 
-        function renderProducts() {
-            const container = document.getElementById('products-list');
-            if (products.length === 0) {
-                container.innerHTML = "<p style='grid-column: span 2; text-align:center;'>Hozircha mahsulotlar yo'q.</p>";
-                return;
-            }
-            container.innerHTML = "";
-            products.forEach((item, index) => {
-                container.innerHTML += `
-                    <div class="product-card">
-                        <img src="${item.image_url}" class="product-img" alt="${item.title}">
-                        <div class="product-title">${item.title}</div>
-                        <div class="product-desc">${item.description || ''}</div>
-                        <div class="product-price">${item.price.toLocaleString()} so'm</div>
-                        <div class="product-stock">Omborda: ${item.stock} dona</div>
-                        <button class="add-btn" onclick="addToCart(${index})">Qo'shish</button>
-                    </div>
-                `;
-            });
-        }
+  <!-- Checkout Modal -->
+  <div id="checkout-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-title">To'lov va Buyurtma</div>
+      <div class="payment-box">
+        <p>💳 To'lov uchun karta:</p>
+        <div class="card-number" id="shop-card-number">Yuklanmoqda...</div>
+        <p style="margin-top:6px;">Jami summa: <b id="modal-total-price">0</b> so'm</p>
+        <p style="font-size:11px;color:#975a16;margin-top:4px;">Pulni o'tkazib, pastga to'lov cheki (skrinshot) rasmini yuklang.</p>
+      </div>
+      <input type="text" id="client-name" class="form-control" placeholder="Ism va Familiyangiz">
+      <input type="tel" id="client-phone" class="form-control" placeholder="+998 90 123 45 67">
+      <input type="text" id="client-address" class="form-control" placeholder="Yetkazib berish manzili">
+      <label style="display:block;font-size:12px;font-weight:600;color:#4a5568;margin-bottom:4px;">📎 To'lov cheki rasmi (Majburiy)</label>
+      <input type="file" id="receipt-file" class="form-control" accept="image/*">
+      <button class="submit-btn" onclick="submitOrder()">Buyurtmani yuborish</button>
+    </div>
+  </div>
 
-        function addToCart(index) {
-            const product = products[index];
-            if (product.stock <= 0) {
-                alert("Kechirasiz, bu mahsulot tugagan!");
-                return;
-            }
-            if (!cart[index]) {
-                cart[index] = { ...product, originalIndex: index, quantity: 1 };
-            } else {
-                if (cart[index].quantity >= product.stock) {
-                    alert("Omborda bundan ortiq mahsulot yo'q!");
-                    return;
-                }
-                cart[index].quantity += 1;
-            }
-            updateCartBar();
-            if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
-        }
+  <!-- Fullscreen image viewer -->
+  <div id="viewer" class="viewer" onclick="closeViewer(event)">
+    <button class="close-x" onclick="closeViewer(event)">✕</button>
+    <img id="viewer-img" src="">
+  </div>
 
-        function updateCartBar() {
-            let totalCount = 0;
-            let totalPrice = 0;
-            for (let key in cart) {
-                totalCount += cart[key].quantity;
-                totalPrice += cart[key].price * cart[key].quantity;
-            }
-            const cartBar = document.getElementById('cart-bar');
-            if (totalCount > 0) {
-                cartBar.style.display = 'flex';
-                document.getElementById('cart-count').innerText = totalCount;
-                document.getElementById('cart-total').innerText = totalPrice.toLocaleString();
-                document.getElementById('modal-total-price').innerText = totalPrice.toLocaleString();
-            } else {
-                cartBar.style.display = 'none';
-            }
-        }
+  <div id="toast" class="toast"></div>
 
-        function openCheckoutModal() {
-            document.getElementById('checkout-modal').style.display = 'flex';
-        }
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
 
-        function submitOrder() {
-            const name = document.getElementById('client-name').value.trim();
-            const phone = document.getElementById('client-phone').value.trim();
-            const address = document.getElementById('client-address').value.trim();
-            const receiptInput = document.getElementById('receipt-file');
+let products = [];
+let cart = {};              // { productId: {..product, quantity} }
+let activeCategory = "Barchasi";
+let searchQuery = "";
+let currentDetailId = null;
+let detailQtyVal = 1;
+let selectedStars = 5;
+let navStack = [];          // Telegram BackButton uchun ekranlar stek
 
-            if (!name || !phone || !address) {
-                alert("Iltimos, shaxsiy ma'lumotlarni to'ldiring!");
-                return;
-            }
-            if (receiptInput.files.length === 0) {
-                alert("❌ Diqqat: To'lov cheki rasmini yuklash majburiy! Chek tashlanmasa zakaz qabul qilinmaydi.");
-                return;
-            }
+/* ---------- Ma'lumotlarni yuklash ---------- */
+function loadData() {
+  fetch('/api/data')
+    .then(res => res.json())
+    .then(data => {
+      products = data.products;
+      document.getElementById('shop-card-number').innerText = data.card_number;
+      renderCategories(data.categories || []);
+      renderGrid();
+    })
+    .catch(() => {
+      document.getElementById('products-grid').innerHTML = '<div class="empty-msg">Ma\'lumotlarni yuklab bo\'lmadi.</div>';
+    });
+}
 
-            let formData = new FormData();
-            formData.append("name", name);
-            formData.append("phone", phone);
-            formData.append("address", address);
-            formData.append("items", JSON.stringify(cart));
-            formData.append("receipt", receiptInput.files[0]);
-            formData.append("user_id", tg.initDataUnsafe?.user?.id || 0);
+function renderCategories(cats) {
+  const wrap = document.getElementById('cats');
+  const all = ["Barchasi", ...cats];
+  wrap.innerHTML = all.map(c =>
+    `<div class="chip ${c === activeCategory ? 'active' : ''}" onclick="selectCategory('${c.replace(/'/g, "\\'")}')">${c}</div>`
+  ).join('');
+}
 
-            fetch('/api/order', {
-                method: 'POST',
-                body: formData
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    alert(`✅ Buyurtmangiz va to'lov cheki qabul qilindi! Chek raqami: #${data.order_id}`);
-                    tg.close();
-                } else {
-                    alert("Xatolik yuz berdi: " + (data.error || 'Nomaʼlum xato'));
-                }
-            })
-            .catch(err => {
-                alert("Server bilan aloqada xatolik!");
-            });
-        }
-    </script>
+function selectCategory(c) {
+  activeCategory = c;
+  document.querySelectorAll('.chip').forEach(el => el.classList.toggle('active', el.textContent === c));
+  renderGrid();
+}
+
+document.getElementById('search-input').addEventListener('input', e => {
+  searchQuery = e.target.value.trim().toLowerCase();
+  renderGrid();
+});
+
+function stars(avg) {
+  const full = Math.round(avg);
+  return '★'.repeat(full) + '☆'.repeat(5 - full);
+}
+
+function renderGrid() {
+  const grid = document.getElementById('products-grid');
+  let list = products;
+  if (activeCategory !== "Barchasi") list = list.filter(p => p.category === activeCategory);
+  if (searchQuery) list = list.filter(p => p.title.toLowerCase().includes(searchQuery));
+
+  if (list.length === 0) {
+    grid.innerHTML = '<div class="empty-msg">Mahsulot topilmadi.</div>';
+    return;
+  }
+
+  grid.innerHTML = list.map(p => {
+    const inCart = cart[p.id];
+    const qtyControls = inCart
+      ? `<div class="qty-stepper">
+           <button onclick="event.stopPropagation();changeCartQty(${p.id},-1)">−</button>
+           <span>${inCart.quantity}</span>
+           <button onclick="event.stopPropagation();changeCartQty(${p.id},1)">+</button>
+         </div>`
+      : (p.stock > 0
+          ? `<button class="addbtn" onclick="event.stopPropagation();addToCart(${p.id})">Qo'shish</button>`
+          : `<button class="addbtn out" disabled>Tugagan</button>`);
+
+    return `
+      <div class="pcard" onclick="openDetail(${p.id})">
+        <div class="img-wrap" onclick="event.stopPropagation();openViewer('${p.image_url}')">
+          <img src="${p.image_url}" alt="${escapeHtml(p.title)}" loading="lazy" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22><rect width=%22200%22 height=%22200%22 fill=%22%23eef0f4%22/><text x=%2250%25%22 y=%2250%25%22 font-size=%2214%22 fill=%22%23aaa%22 text-anchor=%22middle%22 dy=%22.3em%22>rasm yo\\'q</text></svg>'">
+          <div class="zoom-hint">🔍</div>
+        </div>
+        <div class="body">
+          <div class="title">${escapeHtml(p.title)}</div>
+          <div class="rating-row"><span class="stars">${stars(p.rating_avg)}</span><span>${p.rating_count > 0 ? '(' + p.rating_count + ')' : ''}</span></div>
+          <div class="price">${Number(p.price).toLocaleString()} so'm</div>
+          <div class="stock">Omborda: ${p.stock} dona</div>
+          ${qtyControls}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+/* ---------- Savat ---------- */
+function addToCart(id) {
+  const p = products.find(x => x.id === id);
+  if (!p || p.stock <= 0) return;
+  cart[id] = { ...p, quantity: 1 };
+  haptic();
+  renderGrid();
+  updateCartBar();
+}
+
+function changeCartQty(id, delta) {
+  const item = cart[id];
+  if (!item) return;
+  const product = products.find(x => x.id === id);
+  item.quantity += delta;
+  if (item.quantity <= 0) {
+    delete cart[id];
+  } else if (product && item.quantity > product.stock) {
+    item.quantity = product.stock;
+    showToast("Omborda bundan ortiq mahsulot yo'q!");
+  }
+  haptic();
+  renderGrid();
+  updateCartBar();
+  if (!document.getElementById('cart-screen').classList.contains('hidden')) renderCartScreen();
+  if (currentDetailId === id) syncDetailAddButton();
+}
+
+function cartTotals() {
+  let count = 0, total = 0;
+  Object.values(cart).forEach(i => { count += i.quantity; total += i.price * i.quantity; });
+  return { count, total };
+}
+
+function updateCartBar() {
+  const { count, total } = cartTotals();
+  const bar = document.getElementById('cart-bar');
+  if (count > 0) {
+    bar.style.display = 'flex';
+    document.getElementById('cart-count').innerText = count;
+    document.getElementById('cart-total').innerText = total.toLocaleString();
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function haptic() { if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light'); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.innerText = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+/* ---------- Ekranlar / Telegram Back Button ---------- */
+function pushScreen(id) {
+  document.getElementById(id).classList.remove('hidden');
+  navStack.push(id);
+  tg.BackButton.show();
+}
+
+function closeScreen(id) {
+  document.getElementById(id).classList.add('hidden');
+  navStack.pop();
+  if (navStack.length === 0) tg.BackButton.hide();
+}
+
+tg.BackButton.onClick(() => {
+  if (document.getElementById('viewer').classList.contains('show')) {
+    closeViewer();
+    return;
+  }
+  if (document.getElementById('checkout-modal').classList.contains('show')) {
+    document.getElementById('checkout-modal').classList.remove('show');
+    return;
+  }
+  const top = navStack[navStack.length - 1];
+  if (top) closeScreen(top);
+});
+
+/* ---------- Mahsulot tafsiloti ---------- */
+function openDetail(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  currentDetailId = id;
+  detailQtyVal = cart[id] ? cart[id].quantity : 1;
+  selectedStars = 5;
+  updateStarPicker();
+
+  document.getElementById('detail-img').src = p.image_url;
+  document.getElementById('detail-cat').innerText = p.category;
+  document.getElementById('detail-title').innerText = p.title;
+  document.getElementById('detail-stars').innerText = stars(p.rating_avg);
+  document.getElementById('detail-rating-text').innerText = p.rating_count > 0 ? `${p.rating_avg} (${p.rating_count} ta izoh)` : "Hali izoh yo'q";
+  document.getElementById('detail-price').innerText = Number(p.price).toLocaleString() + " so'm";
+  document.getElementById('detail-stock').innerText = p.stock > 0 ? `📦 Omborda: ${p.stock} dona` : "❌ Omborda yo'q";
+  document.getElementById('detail-desc').innerText = p.description || "Tavsif kiritilmagan.";
+  document.getElementById('detail-qty').innerText = detailQtyVal;
+
+  renderReviews(p);
+  document.getElementById('review-name').value = '';
+  document.getElementById('review-comment').value = '';
+
+  syncDetailAddButton();
+  pushScreen('detail-screen');
+}
+
+function syncDetailAddButton() {
+  const p = products.find(x => x.id === currentDetailId);
+  const btn = document.getElementById('detail-add-btn');
+  if (!p) return;
+  if (p.stock <= 0) {
+    btn.innerText = "Tugagan";
+    btn.classList.add('out');
+    btn.disabled = true;
+  } else {
+    btn.innerText = cart[currentDetailId] ? "Savatda ✓ (yangilash)" : "Savatga qo'shish";
+    btn.classList.remove('out');
+    btn.disabled = false;
+  }
+}
+
+function detailQty(delta) {
+  const p = products.find(x => x.id === currentDetailId);
+  if (!p) return;
+  detailQtyVal = Math.max(1, Math.min(p.stock || 1, detailQtyVal + delta));
+  document.getElementById('detail-qty').innerText = detailQtyVal;
+}
+
+function addDetailToCart() {
+  const p = products.find(x => x.id === currentDetailId);
+  if (!p || p.stock <= 0) return;
+  cart[p.id] = { ...p, quantity: detailQtyVal };
+  haptic();
+  updateCartBar();
+  renderGrid();
+  syncDetailAddButton();
+  showToast("✅ Savatga qo'shildi");
+}
+
+function renderReviews(p) {
+  const list = document.getElementById('reviews-list');
+  document.getElementById('reviews-count').innerText = p.reviews.length;
+  if (p.reviews.length === 0) {
+    list.innerHTML = '<div class="no-reviews">Hozircha izohlar yo\'q. Birinchi bo\'lib fikr bildiring!</div>';
+    return;
+  }
+  list.innerHTML = p.reviews.slice().reverse().map(r => `
+    <div class="review-card">
+      <div class="review-top">
+        <span class="review-name">${escapeHtml(r.name)}</span>
+        <span class="review-stars">${stars(r.rating)}</span>
+      </div>
+      <div class="review-comment">${escapeHtml(r.comment)}</div>
+    </div>
+  `).join('');
+}
+
+document.getElementById('star-picker').addEventListener('click', e => {
+  const v = e.target.getAttribute('data-v');
+  if (!v) return;
+  selectedStars = parseInt(v);
+  updateStarPicker();
+});
+
+function updateStarPicker() {
+  document.querySelectorAll('#star-picker span').forEach(el => {
+    el.classList.toggle('on', parseInt(el.getAttribute('data-v')) <= selectedStars);
+  });
+}
+
+function submitReview() {
+  const name = document.getElementById('review-name').value.trim();
+  const comment = document.getElementById('review-comment').value.trim();
+  if (!name || !comment) {
+    showToast("Ism va izohni to'ldiring");
+    return;
+  }
+  fetch(`/api/product/${currentDetailId}/review`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, comment, rating: selectedStars })
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        const p = products.find(x => x.id === currentDetailId);
+        p.reviews.push(data.review);
+        p.rating_count = p.reviews.length;
+        p.rating_avg = Math.round((p.reviews.reduce((s, r) => s + r.rating, 0) / p.reviews.length) * 10) / 10;
+        renderReviews(p);
+        document.getElementById('detail-stars').innerText = stars(p.rating_avg);
+        document.getElementById('detail-rating-text').innerText = `${p.rating_avg} (${p.rating_count} ta izoh)`;
+        document.getElementById('review-name').value = '';
+        document.getElementById('review-comment').value = '';
+        showToast("✅ Izohingiz uchun rahmat!");
+      } else {
+        showToast(data.error || "Xatolik yuz berdi");
+      }
+    })
+    .catch(() => showToast("Server bilan aloqa yo'q"));
+}
+
+/* ---------- To'liq ekran rasm ---------- */
+function openViewer(src) {
+  document.getElementById('viewer-img').src = src;
+  document.getElementById('viewer').classList.add('show');
+  navStack.push('viewer-fake');
+  tg.BackButton.show();
+}
+
+function closeViewer(e) {
+  if (e) e.stopPropagation();
+  document.getElementById('viewer').classList.remove('show');
+  if (navStack[navStack.length - 1] === 'viewer-fake') navStack.pop();
+  if (navStack.length === 0) tg.BackButton.hide();
+}
+
+document.getElementById('detail-img-wrap').addEventListener('click', () => {
+  const p = products.find(x => x.id === currentDetailId);
+  if (p) openViewer(p.image_url);
+});
+
+/* ---------- Savatcha ekrani ---------- */
+function openCart() {
+  renderCartScreen();
+  pushScreen('cart-screen');
+}
+
+function renderCartScreen() {
+  const list = document.getElementById('cart-items-list');
+  const items = Object.values(cart);
+  if (items.length === 0) {
+    list.innerHTML = '<div class="empty-msg">Savatcha bo\'sh.</div>';
+    document.getElementById('checkout-open-btn').style.display = 'none';
+  } else {
+    document.getElementById('checkout-open-btn').style.display = 'block';
+    list.innerHTML = items.map(i => `
+      <div class="cart-item">
+        <img src="${i.image_url}" alt="">
+        <div class="info">
+          <div class="t">${escapeHtml(i.title)}</div>
+          <div class="p">${Number(i.price).toLocaleString()} so'm × ${i.quantity}</div>
+          <button class="remove" onclick="removeFromCart(${i.id})">O'chirish</button>
+        </div>
+        <div class="ctrl">
+          <button onclick="changeCartQty(${i.id},-1)">−</button>
+          <span>${i.quantity}</span>
+          <button onclick="changeCartQty(${i.id},1)">+</button>
+        </div>
+      </div>
+    `).join('');
+  }
+  const { total } = cartTotals();
+  document.getElementById('cart-screen-total').innerText = total.toLocaleString() + " so'm";
+}
+
+function removeFromCart(id) {
+  delete cart[id];
+  haptic();
+  renderCartScreen();
+  renderGrid();
+  updateCartBar();
+  if (currentDetailId === id) syncDetailAddButton();
+}
+
+/* ---------- Checkout ---------- */
+function openCheckoutModal() {
+  const { total } = cartTotals();
+  document.getElementById('modal-total-price').innerText = total.toLocaleString();
+  document.getElementById('checkout-modal').classList.add('show');
+}
+
+function submitOrder() {
+  const name = document.getElementById('client-name').value.trim();
+  const phone = document.getElementById('client-phone').value.trim();
+  const address = document.getElementById('client-address').value.trim();
+  const receiptInput = document.getElementById('receipt-file');
+
+  if (!name || !phone || !address) {
+    showToast("Shaxsiy ma'lumotlarni to'ldiring!");
+    return;
+  }
+  if (receiptInput.files.length === 0) {
+    showToast("To'lov cheki rasmini yuklash majburiy!");
+    return;
+  }
+  if (Object.keys(cart).length === 0) {
+    showToast("Savatchangiz bo'sh!");
+    return;
+  }
+
+  const itemsPayload = {};
+  Object.entries(cart).forEach(([id, item]) => {
+    itemsPayload[id] = { originalIndex: id, quantity: item.quantity };
+  });
+
+  const formData = new FormData();
+  formData.append("name", name);
+  formData.append("phone", phone);
+  formData.append("address", address);
+  formData.append("items", JSON.stringify(itemsPayload));
+  formData.append("receipt", receiptInput.files[0]);
+
+  fetch('/api/order', { method: 'POST', body: formData })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        showToast(`✅ Buyurtma qabul qilindi! №${data.order_id}`);
+        cart = {};
+        updateCartBar();
+        document.getElementById('checkout-modal').classList.remove('show');
+        setTimeout(() => tg.close(), 1200);
+      } else {
+        showToast("Xatolik: " + (data.error || 'Nomaʼlum xato'));
+      }
+    })
+    .catch(() => showToast("Server bilan aloqada xatolik!"));
+}
+
+document.getElementById('checkout-modal').addEventListener('click', e => {
+  if (e.target.id === 'checkout-modal') e.target.classList.remove('show');
+});
+
+loadData();
+</script>
 </body>
 </html>
